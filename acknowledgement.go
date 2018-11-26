@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // Acknowledgement defines a acknowledgement. See https://login.circonus.com/resources/api/calls/acknowledgement for more information.
@@ -39,7 +40,7 @@ func NewAcknowledgement() *Acknowledgement {
 // FetchAcknowledgement retrieves acknowledgement with passed cid.
 func (a *API) FetchAcknowledgement(cid CIDType) (*Acknowledgement, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid acknowledgement CID [none]")
+		return nil, errors.Errorf("invalid acknowledgement CID (none)")
 	}
 
 	var acknowledgementCID string
@@ -54,16 +55,16 @@ func (a *API) FetchAcknowledgement(cid CIDType) (*Acknowledgement, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid acknowledgement CID [%s]", acknowledgementCID)
+		return nil, errors.Errorf("invalid acknowledgement CID (%s)", acknowledgementCID)
 	}
 
 	result, err := a.Get(acknowledgementCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching acknowledgement")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch acknowledgement, received JSON: %s", string(result))
+		a.Log.Printf("fetch acknowledgement, received JSON: %s", string(result))
 	}
 
 	acknowledgement := &Acknowledgement{}
@@ -78,7 +79,7 @@ func (a *API) FetchAcknowledgement(cid CIDType) (*Acknowledgement, error) {
 func (a *API) FetchAcknowledgements() (*[]Acknowledgement, error) {
 	result, err := a.Get(config.AcknowledgementPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching acknowledgements")
 	}
 
 	var acknowledgements []Acknowledgement
@@ -92,7 +93,7 @@ func (a *API) FetchAcknowledgements() (*[]Acknowledgement, error) {
 // UpdateAcknowledgement updates passed acknowledgement.
 func (a *API) UpdateAcknowledgement(cfg *Acknowledgement) (*Acknowledgement, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid acknowledgement config [nil]")
+		return nil, errors.Errorf("invalid acknowledgement config (nil)")
 	}
 
 	acknowledgementCID := cfg.CID
@@ -102,7 +103,7 @@ func (a *API) UpdateAcknowledgement(cfg *Acknowledgement) (*Acknowledgement, err
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid acknowledgement CID [%s]", acknowledgementCID)
+		return nil, errors.Errorf("invalid acknowledgement CID (%s)", acknowledgementCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -111,12 +112,12 @@ func (a *API) UpdateAcknowledgement(cfg *Acknowledgement) (*Acknowledgement, err
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] acknowledgement update, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("acknowledgement update, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(acknowledgementCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating acknowledgement")
 	}
 
 	acknowledgement := &Acknowledgement{}
@@ -130,7 +131,7 @@ func (a *API) UpdateAcknowledgement(cfg *Acknowledgement) (*Acknowledgement, err
 // CreateAcknowledgement creates a new acknowledgement.
 func (a *API) CreateAcknowledgement(cfg *Acknowledgement) (*Acknowledgement, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid acknowledgement config [nil]")
+		return nil, errors.Errorf("invalid acknowledgement config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -140,11 +141,11 @@ func (a *API) CreateAcknowledgement(cfg *Acknowledgement) (*Acknowledgement, err
 
 	result, err := a.Post(config.AcknowledgementPrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating acknowledgement")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] acknowledgement create, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("acknowledgement create, sending JSON: %s", string(jsonCfg))
 	}
 
 	acknowledgement := &Acknowledgement{}
@@ -184,7 +185,7 @@ func (a *API) SearchAcknowledgements(searchCriteria *SearchQueryType, filterCrit
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching acknowledgements")
 	}
 
 	var acknowledgements []Acknowledgement
