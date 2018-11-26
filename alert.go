@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // Alert defines a alert. See https://login.circonus.com/resources/api/calls/alert for more information.
@@ -46,7 +47,7 @@ func NewAlert() *Alert {
 // FetchAlert retrieves alert with passed cid.
 func (a *API) FetchAlert(cid CIDType) (*Alert, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid alert CID [none]")
+		return nil, errors.New("invalid alert CID (none)")
 	}
 
 	var alertCID string
@@ -61,16 +62,16 @@ func (a *API) FetchAlert(cid CIDType) (*Alert, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid alert CID [%s]", alertCID)
+		return nil, errors.Errorf("invalid alert CID (%s)", alertCID)
 	}
 
 	result, err := a.Get(alertCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching alert")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch alert, received JSON: %s", string(result))
+		a.Log.Printf("fetch alert, received JSON: %s", string(result))
 	}
 
 	alert := &Alert{}
@@ -85,7 +86,7 @@ func (a *API) FetchAlert(cid CIDType) (*Alert, error) {
 func (a *API) FetchAlerts() (*[]Alert, error) {
 	result, err := a.Get(config.AlertPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching alerts")
 	}
 
 	var alerts []Alert
@@ -125,7 +126,7 @@ func (a *API) SearchAlerts(searchCriteria *SearchQueryType, filterCriteria *Sear
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching alerts")
 	}
 
 	var alerts []Alert
