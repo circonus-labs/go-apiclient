@@ -6,7 +6,6 @@ package apiclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,8 +13,6 @@ import (
 	"os"
 	"reflect"
 	"testing"
-
-	"github.com/circonus-labs/go-apiclient/config"
 )
 
 var (
@@ -501,399 +498,265 @@ func testDashboardServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
+func dashboardTestBootstrap(t *testing.T) (*API, *httptest.Server) {
+	server := testDashboardServer()
+
+	ac := &Config{
+		TokenKey: "abc123",
+		TokenApp: "test",
+		URL:      server.URL,
+	}
+	apih, err := NewAPI(ac)
+	if err != nil {
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
+	}
+
+	return apih, server
+}
+
 func TestNewDashboard(t *testing.T) {
-	bundle := NewDashboard()
-	actualType := reflect.TypeOf(bundle)
-	expectedType := "*apiclient.Dashboard"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	dashboard := NewDashboard()
+	if reflect.TypeOf(dashboard).String() != "*apiclient.Dashboard" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(dashboard).String())
 	}
 }
 
 func TestFetchDashboard(t *testing.T) {
-	server := testDashboardServer()
+	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid dashboard CID [none]")
-		_, err := apih.FetchDashboard(nil)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cid          string
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"empty cid", "", "", true, "invalid dashboard CID (none)"},
+		{"invalid cid", "/invalid", "", true, "invalid dashboard CID (/dashboard//invalid)"},
+		{"short cid", "1234", "*apiclient.Dashboard", false, ""},
+		{"long cid", "/dashboard/1234", "*apiclient.Dashboard", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid dashboard CID [none]")
-		_, err := apih.FetchDashboard(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid dashboard CID [" + config.DashboardPrefix + "/" + cid + "]")
-		_, err := apih.FetchDashboard(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := "/dashboard/1234"
-		dashboard, err := apih.FetchDashboard(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(dashboard)
-		expectedType := "*apiclient.Dashboard"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-
-		if dashboard.CID != testDashboard.CID {
-			t.Fatalf("CIDs do not match: %+v != %+v\n", dashboard, testDashboard)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			alert, err := apih.FetchDashboard(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(alert).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(alert).String())
+				}
+			}
+		})
 	}
 }
 
 func TestFetchDashboards(t *testing.T) {
-	server := testDashboardServer()
+	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
 
 	dashboards, err := apih.FetchDashboards()
 	if err != nil {
-		t.Fatalf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	actualType := reflect.TypeOf(dashboards)
-	expectedType := "*[]apiclient.Dashboard"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	if reflect.TypeOf(dashboards).String() != "*[]apiclient.Dashboard" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(dashboards).String())
 	}
-
 }
 
 func TestUpdateDashboard(t *testing.T) {
-	server := testDashboardServer()
+	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid dashboard config [nil]")
-		_, err := apih.UpdateDashboard(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cfg         *Dashboard
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"invalid (nil)", nil, true, "invalid dashboard config (nil)"},
+		{"invalid (cid)", &Dashboard{CID: "/invalid"}, true, "invalid dashboard CID (/invalid)"},
+		{"valid", &testDashboard, false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid dashboard CID [/invalid]")
-		x := &Dashboard{CID: "/invalid"}
-		_, err := apih.UpdateDashboard(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		dashboard, err := apih.UpdateDashboard(&testDashboard)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(dashboard)
-		expectedType := "*apiclient.Dashboard"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			_, err := apih.UpdateDashboard(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			}
+		})
 	}
 }
 
 func TestCreateDashboard(t *testing.T) {
-	server := testDashboardServer()
+	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid dashboard config [nil]")
-		_, err := apih.CreateDashboard(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cfg          *Dashboard
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (nil)", nil, "", true, "invalid dashboard config (nil)"},
+		{"valid", &testDashboard, "*apiclient.Dashboard", false, ""},
 	}
 
-	t.Log("valid config")
-	{
-		dashboard, err := apih.CreateDashboard(&testDashboard)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(dashboard)
-		expectedType := "*apiclient.Dashboard"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.CreateDashboard(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }
 
 func TestDeleteDashboard(t *testing.T) {
-	server := testDashboardServer()
+	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid dashboard config [nil]")
-		_, err := apih.DeleteDashboard(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cfg         *Dashboard
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"invalid (nil)", nil, true, "invalid dashboard config (nil)"},
+		{"invalid (cid)", &Dashboard{CID: "/invalid"}, true, "invalid dashboard CID (/dashboard//invalid)"},
+		{"valid", &testDashboard, false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid dashboard CID [/invalid]")
-		x := &Dashboard{CID: "/invalid"}
-		_, err := apih.DeleteDashboard(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		_, err := apih.DeleteDashboard(&testDashboard)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteDashboard(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
 }
 
 func TestDeleteDashboardByCID(t *testing.T) {
-	server := testDashboardServer()
+	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid dashboard CID [none]")
-		_, err := apih.DeleteDashboardByCID(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cid         string
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"empty cid", "", true, "invalid dashboard CID (none)"},
+		{"invalid cid", "/invalid", true, "invalid dashboard CID (/dashboard//invalid)"},
+		{"short cid", "1234", false, ""},
+		{"long cid", "/dashboard/1234", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid dashboard CID [none]")
-		_, err := apih.DeleteDashboardByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid dashboard CID [/invalid]")
-		_, err := apih.DeleteDashboardByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := "/dashboard/1234"
-		_, err := apih.DeleteDashboardByCID(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteDashboardByCID(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
 }
 
 func TestSearchDashboards(t *testing.T) {
-	server := testDashboardServer()
+	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
+	expectedType := "*[]apiclient.Dashboard"
 	search := SearchQueryType("my dashboard")
 	filter := SearchFilterType(map[string][]string{"f__created_gt": {"1483639916"}})
 
-	t.Log("no search, no filter")
-	{
-		dashboards, err := apih.SearchDashboards(nil, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(dashboards)
-		expectedType := "*[]apiclient.Dashboard"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	tests := []struct {
+		id           string
+		search       *SearchQueryType
+		filter       *SearchFilterType
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"no search, no filter", nil, nil, expectedType, false, ""},
+		{"search no filter", &search, nil, expectedType, false, ""},
+		{"filter no search", nil, &filter, expectedType, false, ""},
+		{"both filter and search", &search, &filter, expectedType, false, ""},
 	}
 
-	t.Log("search, no filter")
-	{
-		dashboards, err := apih.SearchDashboards(&search, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(dashboards)
-		expectedType := "*[]apiclient.Dashboard"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("no search, filter")
-	{
-		dashboards, err := apih.SearchDashboards(nil, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(dashboards)
-		expectedType := "*[]apiclient.Dashboard"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("search, filter")
-	{
-		dashboards, err := apih.SearchDashboards(&search, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(dashboards)
-		expectedType := "*[]apiclient.Dashboard"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.SearchDashboards(test.search, test.filter)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }

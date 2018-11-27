@@ -6,15 +6,12 @@ package apiclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
-
-	"github.com/circonus-labs/go-apiclient/config"
 )
 
 var (
@@ -114,399 +111,269 @@ func testOutlierReportServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
+func outlierReportTestBootstrap(t *testing.T) (*API, *httptest.Server) {
+	server := testOutlierReportServer()
+
+	ac := &Config{
+		TokenKey: "abc123",
+		TokenApp: "test",
+		URL:      server.URL,
+	}
+	apih, err := NewAPI(ac)
+	if err != nil {
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
+	}
+
+	return apih, server
+}
+
 func TestNewOutlierReport(t *testing.T) {
-	bundle := NewOutlierReport()
-	actualType := reflect.TypeOf(bundle)
-	expectedType := "*apiclient.OutlierReport"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	outlierReport := NewOutlierReport()
+	if reflect.TypeOf(outlierReport).String() != "*apiclient.OutlierReport" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(outlierReport).String())
 	}
 }
 
 func TestFetchOutlierReport(t *testing.T) {
-	server := testOutlierReportServer()
+	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid outlier report CID [none]")
-		_, err := apih.FetchOutlierReport(nil)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cid          string
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"empty cid", "", "", true, "invalid outlier report CID (none)"},
+		{"invalid cid", "/invalid", "", true, "invalid outlier report CID (/outlier_report//invalid)"},
+		{"short cid", "1234", "*apiclient.OutlierReport", false, ""},
+		{"long cid", "/outlier_report/1234", "*apiclient.OutlierReport", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid outlier report CID [none]")
-		_, err := apih.FetchOutlierReport(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid outlier report CID [" + config.OutlierReportPrefix + "/" + cid + "]")
-		_, err := apih.FetchOutlierReport(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := "/outlier_report/1234"
-		report, err := apih.FetchOutlierReport(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(report)
-		expectedType := "*apiclient.OutlierReport"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-
-		if report.CID != testOutlierReport.CID {
-			t.Fatalf("CIDs do not match: %+v != %+v\n", report, testOutlierReport)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			alert, err := apih.FetchOutlierReport(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(alert).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(alert).String())
+				}
+			}
+		})
 	}
 }
 
 func TestFetchOutlierReports(t *testing.T) {
-	server := testOutlierReportServer()
+	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
 
 	reports, err := apih.FetchOutlierReports()
 	if err != nil {
-		t.Fatalf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	actualType := reflect.TypeOf(reports)
-	expectedType := "*[]apiclient.OutlierReport"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	if reflect.TypeOf(reports).String() != "*[]apiclient.OutlierReport" {
+		t.Fatalf("unexpected tyep (%s)", reflect.TypeOf(reports).String())
 	}
 
 }
 
 func TestUpdateOutlierReport(t *testing.T) {
-	server := testOutlierReportServer()
+	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid outlier report config [nil]")
-		_, err := apih.UpdateOutlierReport(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cfg          *OutlierReport
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (nil)", nil, "", true, "invalid outlier report config (nil)"},
+		{"invalid (cid)", &OutlierReport{CID: "/invalid"}, "", true, "invalid outlier report CID (/invalid)"},
+		{"valid", &testOutlierReport, "*apiclient.OutlierReport", false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid outlier report CID [/invalid]")
-		x := &OutlierReport{CID: "/invalid"}
-		_, err := apih.UpdateOutlierReport(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		report, err := apih.UpdateOutlierReport(&testOutlierReport)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(report)
-		expectedType := "*apiclient.OutlierReport"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			maint, err := apih.UpdateOutlierReport(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(maint).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(maint).String())
+				}
+			}
+		})
 	}
 }
 
 func TestCreateOutlierReport(t *testing.T) {
-	server := testOutlierReportServer()
+	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid outlier report config [nil]")
-		_, err := apih.CreateOutlierReport(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cfg          *OutlierReport
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (nil)", nil, "", true, "invalid outlier report config (nil)"},
+		{"valid", &testOutlierReport, "*apiclient.OutlierReport", false, ""},
 	}
 
-	t.Log("valid config")
-	{
-		report, err := apih.CreateOutlierReport(&testOutlierReport)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(report)
-		expectedType := "*apiclient.OutlierReport"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.CreateOutlierReport(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }
 
 func TestDeleteOutlierReport(t *testing.T) {
-	server := testOutlierReportServer()
+	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid outlier report config [nil]")
-		_, err := apih.DeleteOutlierReport(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cfg         *OutlierReport
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"invalid (nil)", nil, true, "invalid outlier report config (nil)"},
+		{"invalid (cid)", &OutlierReport{CID: "/invalid"}, true, "invalid outlier report CID (/outlier_report//invalid)"},
+		{"valid", &testOutlierReport, false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid outlier report CID [/invalid]")
-		x := &OutlierReport{CID: "/invalid"}
-		_, err := apih.DeleteOutlierReport(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		_, err := apih.DeleteOutlierReport(&testOutlierReport)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteOutlierReport(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
 }
 
 func TestDeleteOutlierReportByCID(t *testing.T) {
-	server := testOutlierReportServer()
+	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid outlier report CID [none]")
-		_, err := apih.DeleteOutlierReportByCID(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cid         string
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"empty cid", "", true, "invalid outlier report CID (none)"},
+		{"invalid cid", "/invalid", true, "invalid outlier report CID (/outlier_report//invalid)"},
+		{"short cid", "1234", false, ""},
+		{"long cid", "/outlier_report/1234", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid outlier report CID [none]")
-		_, err := apih.DeleteOutlierReportByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid outlier report CID [/invalid]")
-		_, err := apih.DeleteOutlierReportByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID`")
-	{
-		cid := "/outlier_report/1234"
-		_, err := apih.DeleteOutlierReportByCID(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteOutlierReportByCID(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
 }
 
 func TestSearchOutlierReports(t *testing.T) {
-	server := testOutlierReportServer()
+	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
+	expectedType := "*[]apiclient.OutlierReport"
 	search := SearchQueryType("requests per second")
 	filter := SearchFilterType(map[string][]string{"f_tags_has": {"service:web"}})
 
-	t.Log("no search, no filter")
-	{
-		reports, err := apih.SearchOutlierReports(nil, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(reports)
-		expectedType := "*[]apiclient.OutlierReport"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	tests := []struct {
+		id           string
+		search       *SearchQueryType
+		filter       *SearchFilterType
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"no search, no filter", nil, nil, expectedType, false, ""},
+		{"search no filter", &search, nil, expectedType, false, ""},
+		{"filter no search", nil, &filter, expectedType, false, ""},
+		{"both filter and search", &search, &filter, expectedType, false, ""},
 	}
 
-	t.Log("search, no filter")
-	{
-		reports, err := apih.SearchOutlierReports(&search, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(reports)
-		expectedType := "*[]apiclient.OutlierReport"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("no search, filter")
-	{
-		reports, err := apih.SearchOutlierReports(nil, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(reports)
-		expectedType := "*[]apiclient.OutlierReport"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("search, filter")
-	{
-		reports, err := apih.SearchOutlierReports(&search, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(reports)
-		expectedType := "*[]apiclient.OutlierReport"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.SearchOutlierReports(test.search, test.filter)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }

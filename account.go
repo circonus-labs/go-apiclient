@@ -89,7 +89,7 @@ func (a *API) FetchAccount(cid CIDType) (*Account, error) {
 
 	account := new(Account)
 	if err := json.Unmarshal(result, account); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing account")
 	}
 
 	return account, nil
@@ -104,7 +104,7 @@ func (a *API) FetchAccounts() (*[]Account, error) {
 
 	var accounts []Account
 	if err := json.Unmarshal(result, &accounts); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing accounts")
 	}
 
 	return &accounts, nil
@@ -142,7 +142,7 @@ func (a *API) UpdateAccount(cfg *Account) (*Account, error) {
 
 	account := &Account{}
 	if err := json.Unmarshal(result, account); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing account")
 	}
 
 	return account, nil

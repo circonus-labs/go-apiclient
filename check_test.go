@@ -6,7 +6,6 @@ package apiclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -85,9 +84,8 @@ func testCheckServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
-func TestFetchCheck(t *testing.T) {
+func checkTestBootstrap(t *testing.T) (*API, *httptest.Server) {
 	server := testCheckServer()
-	defer server.Close()
 
 	ac := &Config{
 		TokenKey: "abc123",
@@ -96,251 +94,105 @@ func TestFetchCheck(t *testing.T) {
 	}
 	apih, err := NewAPI(ac)
 	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
 	}
 
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid check CID [none]")
-		_, err = apih.FetchCheck(nil)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	return apih, server
+}
+
+func TestFetchCheck(t *testing.T) {
+	apih, server := checkTestBootstrap(t)
+	defer server.Close()
+
+	tests := []struct {
+		id           string
+		cid          string
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"empty cid", "", "", true, "invalid check CID (none)"},
+		{"invalid cid", "/invalid", "", true, "invalid check CID (/check//invalid)"},
+		{"short cid", "1234", "*apiclient.Check", false, ""},
+		{"long cid", "/check/1234", "*apiclient.Check", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid check CID [none]")
-		_, err = apih.FetchCheck(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			alert, err := apih.FetchCheck(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(alert).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(alert).String())
+				}
+			}
+		})
+	}
+}
+
+func TestFetchChecks(t *testing.T) {
+	apih, server := checkTestBootstrap(t)
+	defer server.Close()
+
+	checks, err := apih.FetchChecks()
+	if err != nil {
+		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid check CID [" + config.CheckPrefix + "/" + cid + "]")
-		_, err = apih.FetchCheck(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := CIDType(&testCheck.CID)
-		check, err := apih.FetchCheck(cid)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(check)
-		expectedType := "*apiclient.Check"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-
-		if check.CID != testCheck.CID {
-			t.Fatalf("CIDs do not match: %+v != %+v\n", check, testCheck)
-		}
+	if reflect.TypeOf(checks).String() != "*[]apiclient.Check" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(checks).String())
 	}
 }
 
 func TestSearchChecks(t *testing.T) {
-	server := testCheckServer()
+	apih, server := checkTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-	var err error
+	expectedType := "*[]apiclient.Check"
+	search := SearchQueryType("test")
+	filter := SearchFilterType{"f__tags_has": []string{"cat:tag"}}
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err = NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("no search, no filter")
-	{
-		clusters, err := apih.SearchChecks(nil, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(clusters)
-		expectedType := "*[]apiclient.Check"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	tests := []struct {
+		id           string
+		search       *SearchQueryType
+		filter       *SearchFilterType
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"no search, no filter", nil, nil, expectedType, false, ""},
+		{"search no filter", &search, nil, expectedType, false, ""},
+		{"filter no search", nil, &filter, expectedType, false, ""},
+		{"both filter and search", &search, &filter, expectedType, false, ""},
 	}
 
-	t.Log("search, no filter")
-	{
-		search := SearchQueryType("test")
-		clusters, err := apih.SearchChecks(&search, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(clusters)
-		expectedType := "*[]apiclient.Check"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("no search, filter")
-	{
-		filter := SearchFilterType{"f__tags_has": []string{"cat:tag"}}
-		clusters, err := apih.SearchChecks(nil, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(clusters)
-		expectedType := "*[]apiclient.Check"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("search, filter")
-	{
-		search := SearchQueryType("test")
-		filter := SearchFilterType{"f__tags_has": []string{"cat:tag"}}
-		clusters, err := apih.SearchChecks(&search, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(clusters)
-		expectedType := "*[]apiclient.Check"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.SearchChecks(test.search, test.filter)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }
-
-/*
-func TestFetchCheckBySubmissionURL(t *testing.T) {
-    server := testCheckServer()
-    defer server.Close()
-
-    var apih *API
-    var err error
-
-    ac := &Config{
-        TokenKey: "abc123",
-        TokenApp: "test",
-        URL:      server.URL,
-    }
-    apih, err = NewAPI(ac)
-    if err != nil {
-        t.Errorf("Expected no error, got '%v'", err)
-    }
-
-    t.Log("Testing invalid URL (blank)")
-    {
-        expectedError := errors.New("[ERROR] Invalid submission URL (blank)")
-        _, err = apih.FetchCheckBySubmissionURL("")
-        if err == nil {
-            t.Fatalf("Expected error")
-        }
-        if err.Error() != expectedError.Error() {
-            t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-        }
-    }
-
-    t.Log("Testing invalid URL (bad format)")
-    {
-        expectedError := errors.New("parse http://example.com\\noplace$: invalid character \"\\\\\" in host name")
-        _, err = apih.FetchCheckBySubmissionURL(URLType("http://example.com\\noplace$"))
-        if err == nil {
-            t.Fatalf("Expected error")
-        }
-        if err.Error() != expectedError.Error() {
-            t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-        }
-    }
-
-    t.Log("Testing invalid URL (bad path)")
-    {
-        expectedError := errors.New("[ERROR] Invalid submission URL 'http://example.com/foo', unrecognized path")
-        _, err = apih.FetchCheckBySubmissionURL(URLType("http://example.com/foo"))
-        if err == nil {
-            t.Fatalf("Expected error")
-        }
-        if err.Error() != expectedError.Error() {
-            t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-        }
-    }
-
-    t.Log("Testing invalid URL (no uuid)")
-    {
-        expectedError := errors.New("[ERROR] Invalid submission URL 'http://example.com/module/httptrap/', UUID not where expected")
-        _, err = apih.FetchCheckBySubmissionURL(URLType("http://example.com/module/httptrap/"))
-        if err == nil {
-            t.Fatalf("Expected error")
-        }
-        if err.Error() != expectedError.Error() {
-            t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-        }
-    }
-
-    t.Log("Testing valid URL (0 checks returned)")
-    {
-        expectedError := errors.New("[ERROR] No checks found with UUID none")
-        _, err := apih.FetchCheckBySubmissionURL(URLType("http://example.com/module/httptrap/none/boo"))
-        if err == nil {
-            t.Fatalf("Expected error")
-        }
-        if err.Error() != expectedError.Error() {
-            t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-        }
-    }
-
-    t.Log("Testing valid URL (multiple checks returned)")
-    {
-        expectedError := errors.New("[ERROR] Multiple checks with same UUID multi")
-        _, err := apih.FetchCheckBySubmissionURL(URLType("http://example.com/module/httptrap/multi/boo"))
-        if err == nil {
-            t.Fatalf("Expected error")
-        }
-        if err.Error() != expectedError.Error() {
-            t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-        }
-    }
-
-    t.Log("Testing valid URL (1 check returned)")
-    {
-        check, err := apih.FetchCheckBySubmissionURL(URLType("http://example.com/module/httptrap/abc123-abc1-def2-ghi3-123abc/boo"))
-        if err != nil {
-            t.Fatalf("Expected no error, got '%v'", err)
-        }
-
-        actualType := reflect.TypeOf(check)
-        expectedType := "*apiclient.Check"
-        if actualType.String() != expectedType {
-            t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-        }
-
-        if check.CID != testCheck.CID {
-            t.Fatalf("CIDs do not match: %+v != %+v\n", check, testCheck)
-        }
-    }
-}
-*/

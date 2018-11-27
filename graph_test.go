@@ -6,15 +6,12 @@ package apiclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
-
-	"github.com/circonus-labs/go-apiclient/config"
 )
 
 var (
@@ -149,400 +146,265 @@ func testGraphServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
+func graphTestBootstrap(t *testing.T) (*API, *httptest.Server) {
+	server := testGraphServer()
+
+	ac := &Config{
+		TokenKey: "abc123",
+		TokenApp: "test",
+		URL:      server.URL,
+	}
+	apih, err := NewAPI(ac)
+	if err != nil {
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
+	}
+
+	return apih, server
+}
+
 func TestNewGraph(t *testing.T) {
-	bundle := NewGraph()
-	actualType := reflect.TypeOf(bundle)
-	expectedType := "*apiclient.Graph"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	graph := NewGraph()
+	if reflect.TypeOf(graph).String() != "*apiclient.Graph" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(graph).String())
 	}
 }
 
 func TestFetchGraph(t *testing.T) {
-	server := testGraphServer()
+	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid graph CID [none]")
-		_, err := apih.FetchGraph(nil)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cid          string
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"empty cid", "", "", true, "invalid graph CID (none)"},
+		{"invalid cid", "/invalid", "", true, "invalid graph CID (/graph//invalid)"},
+		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Graph", false, ""},
+		{"long cid", "/graph/01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Graph", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid graph CID [none]")
-		_, err := apih.FetchGraph(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			alert, err := apih.FetchGraph(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(alert).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(alert).String())
+				}
+			}
+		})
 	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid graph CID [" + config.GraphPrefix + "/" + cid + "]")
-		_, err := apih.FetchGraph(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := "/graph/01234567-89ab-cdef-0123-456789abcdef"
-		graph, err := apih.FetchGraph(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(graph)
-		expectedType := "*apiclient.Graph"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-
-		if graph.CID != testGraph.CID {
-			t.Fatalf("CIDs do not match: %+v != %+v\n", graph, testGraph)
-		}
-	}
-
 }
 
 func TestFetchGraphs(t *testing.T) {
-	server := testGraphServer()
+	apih, server := graphTestBootstrap(t)
 	defer server.Close()
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
 
 	graphs, err := apih.FetchGraphs()
 	if err != nil {
-		t.Fatalf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	actualType := reflect.TypeOf(graphs)
-	expectedType := "*[]apiclient.Graph"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	if reflect.TypeOf(graphs).String() != "*[]apiclient.Graph" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(graphs).String())
 	}
-
 }
 
 func TestUpdateGraph(t *testing.T) {
-	server := testGraphServer()
+	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid graph config [nil]")
-		_, err := apih.UpdateGraph(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cfg         *Graph
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"invalid (nil)", nil, true, "invalid graph config (nil)"},
+		{"invalid (cid)", &Graph{CID: "/invalid"}, true, "invalid graph CID (/invalid)"},
+		{"valid", &testGraph, false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid graph CID [/invalid]")
-		x := &Graph{CID: "/invalid"}
-		_, err := apih.UpdateGraph(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid Graph")
-	{
-		graph, err := apih.UpdateGraph(&testGraph)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(graph)
-		expectedType := "*apiclient.Graph"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			_, err := apih.UpdateGraph(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			}
+		})
 	}
 }
 
 func TestCreateGraph(t *testing.T) {
-	server := testGraphServer()
+	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid graph config [nil]")
-		_, err := apih.CreateGraph(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cfg          *Graph
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (nil)", nil, "", true, "invalid graph config (nil)"},
+		{"valid", &testGraph, "*apiclient.Graph", false, ""},
 	}
 
-	t.Log("valid config")
-	{
-		graph, err := apih.CreateGraph(&testGraph)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(graph)
-		expectedType := "*apiclient.Graph"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.CreateGraph(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }
 
 func TestDeleteGraph(t *testing.T) {
-	server := testGraphServer()
+	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid graph config [nil]")
-		_, err := apih.DeleteGraph(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cfg         *Graph
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"invalid (nil)", nil, true, "invalid graph config (nil)"},
+		{"invalid (cid)", &Graph{CID: "/invalid"}, true, "invalid graph CID (/graph//invalid)"},
+		{"valid", &testGraph, false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid graph CID [/invalid]")
-		x := &Graph{CID: "/invalid"}
-		_, err := apih.DeleteGraph(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		_, err := apih.DeleteGraph(&testGraph)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteGraph(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
 }
 
 func TestDeleteGraphByCID(t *testing.T) {
-	server := testGraphServer()
+	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid graph CID [none]")
-		_, err := apih.DeleteGraphByCID(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cid         string
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"empty cid", "", true, "invalid graph CID (none)"},
+		{"invalid cid", "/invalid", true, "invalid graph CID (/graph//invalid)"},
+		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", false, ""},
+		{"long cid", "/graph/01234567-89ab-cdef-0123-456789abcdef", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid graph CID [none]")
-		_, err := apih.DeleteGraphByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid graph CID [/invalid]")
-		_, err := apih.DeleteGraphByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		cid := "/graph/01234567-89ab-cdef-0123-456789abcdef"
-		_, err := apih.DeleteGraphByCID(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteGraphByCID(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
 }
 
 func TestSearchGraphs(t *testing.T) {
-	server := testGraphServer()
+	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
+	expectedType := "*[]apiclient.Graph"
 	search := SearchQueryType("CPU Utilization")
 	filter := SearchFilterType(map[string][]string{"f__tags_has": {"os:rhel7"}})
 
-	t.Log("no search, no filter")
-	{
-		graphs, err := apih.SearchGraphs(nil, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(graphs)
-		expectedType := "*[]apiclient.Graph"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	tests := []struct {
+		id           string
+		search       *SearchQueryType
+		filter       *SearchFilterType
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"no search, no filter", nil, nil, expectedType, false, ""},
+		{"search no filter", &search, nil, expectedType, false, ""},
+		{"filter no search", nil, &filter, expectedType, false, ""},
+		{"both filter and search", &search, &filter, expectedType, false, ""},
 	}
 
-	t.Log("search, no filter")
-	{
-		graphs, err := apih.SearchGraphs(&search, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(graphs)
-		expectedType := "*[]apiclient.Graph"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("no search, filter")
-	{
-		graphs, err := apih.SearchGraphs(nil, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(graphs)
-		expectedType := "*[]apiclient.Graph"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("search, filter")
-	{
-		graphs, err := apih.SearchGraphs(&search, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(graphs)
-		expectedType := "*[]apiclient.Graph"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.SearchGraphs(test.search, test.filter)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }

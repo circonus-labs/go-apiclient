@@ -6,15 +6,12 @@ package apiclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
-
-	"github.com/circonus-labs/go-apiclient/config"
 )
 
 var (
@@ -91,198 +88,140 @@ func testProvisionBrokerServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
+func provisionBrokerTestBootstrap(t *testing.T) (*API, *httptest.Server) {
+	server := testProvisionBrokerServer()
+
+	ac := &Config{
+		TokenKey: "abc123",
+		TokenApp: "test",
+		URL:      server.URL,
+	}
+	apih, err := NewAPI(ac)
+	if err != nil {
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
+	}
+
+	return apih, server
+}
+
 func TestNewProvisionBroker(t *testing.T) {
-	bundle := NewProvisionBroker()
-	actualType := reflect.TypeOf(bundle)
-	expectedType := "*apiclient.ProvisionBroker"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	provisionBroker := NewProvisionBroker()
+	if reflect.TypeOf(provisionBroker).String() != "*apiclient.ProvisionBroker" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(provisionBroker).String())
 	}
 }
 
 func TestFetchProvisionBroker(t *testing.T) {
-	server := testProvisionBrokerServer()
+	apih, server := provisionBrokerTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid provision broker request CID [none]")
-		_, err := apih.FetchProvisionBroker(nil)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cid          string
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"empty cid", "", "", true, "invalid provision broker CID (none)"},
+		{"invalid cid", "/invalid", "", true, "invalid provision broker CID (/provision_broker//invalid)"},
+		{"short cid", "abc-1234", "*apiclient.ProvisionBroker", false, ""},
+		{"long cid", "/provision_broker/abc-1234", "*apiclient.ProvisionBroker", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid provision broker request CID [none]")
-		_, err := apih.FetchProvisionBroker(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid provision broker request CID [" + config.ProvisionBrokerPrefix + "/" + cid + "]")
-		_, err := apih.FetchProvisionBroker(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := "/provision_broker/abc-1234"
-		broker, err := apih.FetchProvisionBroker(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(broker)
-		expectedType := "*apiclient.ProvisionBroker"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-
-		if broker.CID != testProvisionBroker.CID {
-			t.Fatalf("CIDs do not match: %+v != %+v\n", broker, testProvisionBroker)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			alert, err := apih.FetchProvisionBroker(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(alert).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(alert).String())
+				}
+			}
+		})
 	}
 }
 
 func TestUpdateProvisionBroker(t *testing.T) {
-	server := testProvisionBrokerServer()
+	apih, server := provisionBrokerTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil], config n/a")
-	{
-		expectedError := errors.New("Invalid provision broker request CID [none]")
-		x := &ProvisionBroker{}
-		_, err := apih.UpdateProvisionBroker(nil, x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cid          string
+		cfg          *ProvisionBroker
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (cid)", "", nil, "", true, "invalid provision broker CID (none)"},
+		{"invalid (cfg)", "foo", nil, "", true, "invalid provision broker config (nil)"},
+		{"invalid (cid)", "/invalid", &testProvisionBroker, "", true, "invalid provision broker CID (/invalid)"},
+		{"valid", "/provision_broker/abc-1234", &testProvisionBroker, "*apiclient.ProvisionBroker", false, ""},
 	}
 
-	t.Log("invalid CID [/invalid], config n/a")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid provision broker request CID [/invalid]")
-		x := &ProvisionBroker{}
-		_, err := apih.UpdateProvisionBroker(CIDType(&cid), x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID, invalid config [nil]")
-	{
-		cid := "/provision_broker/abc-1234"
-		expectedError := errors.New("Invalid provision broker request config [nil]")
-		_, err := apih.UpdateProvisionBroker(CIDType(&cid), nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID, valid config")
-	{
-		cid := "/provision_broker/abc-1234"
-		broker, err := apih.UpdateProvisionBroker(CIDType(&cid), &testProvisionBroker)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(broker)
-		expectedType := "*apiclient.ProvisionBroker"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			maint, err := apih.UpdateProvisionBroker(CIDType(&test.cid), test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(maint).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(maint).String())
+				}
+			}
+		})
 	}
 }
 
 func TestCreateProvisionBroker(t *testing.T) {
-	server := testProvisionBrokerServer()
+	apih, server := provisionBrokerTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid provision broker request config [nil]")
-		_, err := apih.CreateProvisionBroker(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cfg          *ProvisionBroker
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (nil)", nil, "", true, "invalid provision broker config (nil)"},
+		{"valid", &testProvisionBroker, "*apiclient.ProvisionBroker", false, ""},
 	}
 
-	t.Log("valid config")
-	{
-		broker, err := apih.CreateProvisionBroker(&testProvisionBroker)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(broker)
-		expectedType := "*apiclient.ProvisionBroker"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.CreateProvisionBroker(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }

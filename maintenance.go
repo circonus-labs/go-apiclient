@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // Maintenance defines a maintenance window. See https://login.circonus.com/resources/api/calls/maintenance for more information.
@@ -37,7 +38,7 @@ func NewMaintenanceWindow() *Maintenance {
 // FetchMaintenanceWindow retrieves maintenance [window] with passed cid.
 func (a *API) FetchMaintenanceWindow(cid CIDType) (*Maintenance, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid maintenance window CID [none]")
+		return nil, errors.New("invalid maintenance window CID (none)")
 	}
 
 	var maintenanceCID string
@@ -52,21 +53,21 @@ func (a *API) FetchMaintenanceWindow(cid CIDType) (*Maintenance, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid maintenance window CID [%s]", maintenanceCID)
+		return nil, errors.Errorf("invalid maintenance window CID (%s)", maintenanceCID)
 	}
 
 	result, err := a.Get(maintenanceCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching maitenance window")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch maintenance window, received JSON: %s", string(result))
+		a.Log.Printf("fetch maintenance window, received JSON: %s", string(result))
 	}
 
 	window := &Maintenance{}
 	if err := json.Unmarshal(result, window); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing maintenance window")
 	}
 
 	return window, nil
@@ -76,12 +77,12 @@ func (a *API) FetchMaintenanceWindow(cid CIDType) (*Maintenance, error) {
 func (a *API) FetchMaintenanceWindows() (*[]Maintenance, error) {
 	result, err := a.Get(config.MaintenancePrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching maintenance windows")
 	}
 
 	var windows []Maintenance
 	if err := json.Unmarshal(result, &windows); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing maintenance windows")
 	}
 
 	return &windows, nil
@@ -90,7 +91,7 @@ func (a *API) FetchMaintenanceWindows() (*[]Maintenance, error) {
 // UpdateMaintenanceWindow updates passed maintenance [window].
 func (a *API) UpdateMaintenanceWindow(cfg *Maintenance) (*Maintenance, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid maintenance window config [nil]")
+		return nil, errors.New("invalid maintenance window config (nil)")
 	}
 
 	maintenanceCID := cfg.CID
@@ -100,7 +101,7 @@ func (a *API) UpdateMaintenanceWindow(cfg *Maintenance) (*Maintenance, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid maintenance window CID [%s]", maintenanceCID)
+		return nil, errors.Errorf("invalid maintenance window CID (%s)", maintenanceCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -109,12 +110,12 @@ func (a *API) UpdateMaintenanceWindow(cfg *Maintenance) (*Maintenance, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update maintenance window, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update maintenance window, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(maintenanceCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing maintenance window")
 	}
 
 	window := &Maintenance{}
@@ -128,7 +129,7 @@ func (a *API) UpdateMaintenanceWindow(cfg *Maintenance) (*Maintenance, error) {
 // CreateMaintenanceWindow creates a new maintenance [window].
 func (a *API) CreateMaintenanceWindow(cfg *Maintenance) (*Maintenance, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid maintenance window config [nil]")
+		return nil, errors.New("invalid maintenance window config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -137,17 +138,17 @@ func (a *API) CreateMaintenanceWindow(cfg *Maintenance) (*Maintenance, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] create maintenance window, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("create maintenance window, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Post(config.MaintenancePrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating maintenace window")
 	}
 
 	window := &Maintenance{}
 	if err := json.Unmarshal(result, window); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing maintenance window")
 	}
 
 	return window, nil
@@ -156,7 +157,7 @@ func (a *API) CreateMaintenanceWindow(cfg *Maintenance) (*Maintenance, error) {
 // DeleteMaintenanceWindow deletes passed maintenance [window].
 func (a *API) DeleteMaintenanceWindow(cfg *Maintenance) (bool, error) {
 	if cfg == nil {
-		return false, fmt.Errorf("Invalid maintenance window config [nil]")
+		return false, errors.New("invalid maintenance window config (nil)")
 	}
 	return a.DeleteMaintenanceWindowByCID(CIDType(&cfg.CID))
 }
@@ -164,22 +165,27 @@ func (a *API) DeleteMaintenanceWindow(cfg *Maintenance) (bool, error) {
 // DeleteMaintenanceWindowByCID deletes maintenance [window] with passed cid.
 func (a *API) DeleteMaintenanceWindowByCID(cid CIDType) (bool, error) {
 	if cid == nil || *cid == "" {
-		return false, fmt.Errorf("Invalid maintenance window CID [none]")
+		return false, errors.New("invalid maintenance window CID (none)")
 	}
 
-	maintenanceCID := *cid
+	var maintenanceCID string
+	if !strings.HasPrefix(*cid, config.MaintenancePrefix) {
+		maintenanceCID = fmt.Sprintf("%s/%s", config.MaintenancePrefix, *cid)
+	} else {
+		maintenanceCID = *cid
+	}
 
 	matched, err := regexp.MatchString(config.MaintenanceCIDRegex, maintenanceCID)
 	if err != nil {
 		return false, err
 	}
 	if !matched {
-		return false, fmt.Errorf("Invalid maintenance window CID [%s]", maintenanceCID)
+		return false, errors.Errorf("invalid maintenance window CID (%s)", maintenanceCID)
 	}
 
 	_, err = a.Delete(maintenanceCID)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "deleting maintenance window")
 	}
 
 	return true, nil
@@ -214,12 +220,12 @@ func (a *API) SearchMaintenanceWindows(searchCriteria *SearchQueryType, filterCr
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching maintenance windows")
 	}
 
 	var windows []Maintenance
 	if err := json.Unmarshal(result, &windows); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing maintenance windows")
 	}
 
 	return &windows, nil

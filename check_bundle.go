@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // CheckBundleMetric individual metric configuration
@@ -71,7 +72,7 @@ func NewCheckBundle() *CheckBundle {
 // FetchCheckBundle retrieves check bundle with passed cid.
 func (a *API) FetchCheckBundle(cid CIDType) (*CheckBundle, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid check bundle CID [none]")
+		return nil, errors.New("invalid check bundle CID (none)")
 	}
 
 	var bundleCID string
@@ -86,21 +87,21 @@ func (a *API) FetchCheckBundle(cid CIDType) (*CheckBundle, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid check bundle CID [%v]", bundleCID)
+		return nil, errors.Errorf("invalid check bundle CID (%v)", bundleCID)
 	}
 
 	result, err := a.Get(bundleCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching check bundle")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch check bundle, received JSON: %s", string(result))
+		a.Log.Printf("fetch check bundle, received JSON: %s", string(result))
 	}
 
 	checkBundle := &CheckBundle{}
 	if err := json.Unmarshal(result, checkBundle); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing check bundle")
 	}
 
 	return checkBundle, nil
@@ -110,12 +111,12 @@ func (a *API) FetchCheckBundle(cid CIDType) (*CheckBundle, error) {
 func (a *API) FetchCheckBundles() (*[]CheckBundle, error) {
 	result, err := a.Get(config.CheckBundlePrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching check bundles")
 	}
 
 	var checkBundles []CheckBundle
 	if err := json.Unmarshal(result, &checkBundles); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing check bundles")
 	}
 
 	return &checkBundles, nil
@@ -124,7 +125,7 @@ func (a *API) FetchCheckBundles() (*[]CheckBundle, error) {
 // UpdateCheckBundle updates passed check bundle.
 func (a *API) UpdateCheckBundle(cfg *CheckBundle) (*CheckBundle, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid check bundle config [nil]")
+		return nil, errors.New("invalid check bundle config (nil)")
 	}
 
 	bundleCID := cfg.CID
@@ -134,7 +135,7 @@ func (a *API) UpdateCheckBundle(cfg *CheckBundle) (*CheckBundle, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid check bundle CID [%s]", bundleCID)
+		return nil, errors.Errorf("invalid check bundle CID (%s)", bundleCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -143,17 +144,17 @@ func (a *API) UpdateCheckBundle(cfg *CheckBundle) (*CheckBundle, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update check bundle, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update check bundle, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(bundleCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating check bundle")
 	}
 
 	checkBundle := &CheckBundle{}
 	if err := json.Unmarshal(result, checkBundle); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing check bundle")
 	}
 
 	return checkBundle, nil
@@ -162,7 +163,7 @@ func (a *API) UpdateCheckBundle(cfg *CheckBundle) (*CheckBundle, error) {
 // CreateCheckBundle creates a new check bundle (check).
 func (a *API) CreateCheckBundle(cfg *CheckBundle) (*CheckBundle, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid check bundle config [nil]")
+		return nil, errors.New("invalid check bundle config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -171,17 +172,17 @@ func (a *API) CreateCheckBundle(cfg *CheckBundle) (*CheckBundle, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] create check bundle, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("create check bundle, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Post(config.CheckBundlePrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating check bundle")
 	}
 
 	checkBundle := &CheckBundle{}
 	if err := json.Unmarshal(result, checkBundle); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing check bundle")
 	}
 
 	return checkBundle, nil
@@ -190,7 +191,7 @@ func (a *API) CreateCheckBundle(cfg *CheckBundle) (*CheckBundle, error) {
 // DeleteCheckBundle deletes passed check bundle.
 func (a *API) DeleteCheckBundle(cfg *CheckBundle) (bool, error) {
 	if cfg == nil {
-		return false, fmt.Errorf("Invalid check bundle config [nil]")
+		return false, errors.New("invalid check bundle config (nil)")
 	}
 	return a.DeleteCheckBundleByCID(CIDType(&cfg.CID))
 }
@@ -199,22 +200,27 @@ func (a *API) DeleteCheckBundle(cfg *CheckBundle) (bool, error) {
 func (a *API) DeleteCheckBundleByCID(cid CIDType) (bool, error) {
 
 	if cid == nil || *cid == "" {
-		return false, fmt.Errorf("Invalid check bundle CID [none]")
+		return false, errors.New("invalid check bundle CID (none)")
 	}
 
-	bundleCID := *cid
+	var bundleCID string
+	if !strings.HasPrefix(*cid, config.CheckBundlePrefix) {
+		bundleCID = fmt.Sprintf("%s/%s", config.CheckBundlePrefix, *cid)
+	} else {
+		bundleCID = *cid
+	}
 
 	matched, err := regexp.MatchString(config.CheckBundleCIDRegex, bundleCID)
 	if err != nil {
 		return false, err
 	}
 	if !matched {
-		return false, fmt.Errorf("Invalid check bundle CID [%v]", bundleCID)
+		return false, errors.Errorf("invalid check bundle CID (%v)", bundleCID)
 	}
 
 	_, err = a.Delete(bundleCID)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "deleting check bundle")
 	}
 
 	return true, nil
@@ -223,7 +229,7 @@ func (a *API) DeleteCheckBundleByCID(cid CIDType) (bool, error) {
 // SearchCheckBundles returns check bundles matching the specified
 // search query and/or filter. If nil is passed for both parameters
 // all check bundles will be returned.
-func (a *API) SearchCheckBundles(searchCriteria *SearchQueryType, filterCriteria *map[string][]string) (*[]CheckBundle, error) {
+func (a *API) SearchCheckBundles(searchCriteria *SearchQueryType, filterCriteria *SearchFilterType) (*[]CheckBundle, error) {
 
 	q := url.Values{}
 
@@ -250,12 +256,12 @@ func (a *API) SearchCheckBundles(searchCriteria *SearchQueryType, filterCriteria
 
 	resp, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching check bundles")
 	}
 
 	var results []CheckBundle
 	if err := json.Unmarshal(resp, &results); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing check bundles")
 	}
 
 	return &results, nil

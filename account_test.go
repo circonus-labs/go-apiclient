@@ -122,9 +122,8 @@ func testAccountServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
-func TestFetchAccount(t *testing.T) {
+func accountTestBootstrap(t *testing.T) (*API, *httptest.Server) {
 	server := testAccountServer()
-	defer server.Close()
 
 	ac := &Config{
 		TokenKey: "abc123",
@@ -133,8 +132,17 @@ func TestFetchAccount(t *testing.T) {
 	}
 	apih, err := NewAPI(ac)
 	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
 	}
+
+	return apih, server
+}
+
+func TestFetchAccount(t *testing.T) {
+	apih, server := accountTestBootstrap(t)
+	defer server.Close()
 
 	tests := []struct {
 		id           string
@@ -172,46 +180,23 @@ func TestFetchAccount(t *testing.T) {
 }
 
 func TestFetchAccounts(t *testing.T) {
-	server := testAccountServer()
+	apih, server := accountTestBootstrap(t)
 	defer server.Close()
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Fatalf("unexpected error (%s)", err)
-	}
 
 	accounts, err := apih.FetchAccounts()
 	if err != nil {
 		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	actualType := reflect.TypeOf(accounts)
-	if actualType.String() != "*[]apiclient.Account" {
-		t.Fatalf("unexpected type (%s)", actualType.String())
+	if reflect.TypeOf(accounts).String() != "*[]apiclient.Account" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(accounts).String())
 	}
 
 }
 
 func TestUpdateAccount(t *testing.T) {
-	server := testAccountServer()
+	apih, server := accountTestBootstrap(t)
 	defer server.Close()
-
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
 
 	tests := []struct {
 		id           string
@@ -247,47 +232,40 @@ func TestUpdateAccount(t *testing.T) {
 }
 
 func TestSearchAccounts(t *testing.T) {
-	server := testAccountServer()
+	apih, server := accountTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Fatalf("unexpected error (%s)", err)
-	}
-
 	expectedType := "*[]apiclient.Account"
+	filter := SearchFilterType(map[string][]string{"f_name_wildcard": {"*ops*"}})
 
-	t.Log("no filter")
-	{
-		accounts, err := apih.SearchAccounts(nil)
-		if err != nil {
-			t.Fatalf("unexpected error (%s)", err)
-		}
-
-		actualType := reflect.TypeOf(accounts)
-		if actualType.String() != expectedType {
-			t.Fatalf("unexpected type (%s)", actualType.String())
-		}
+	tests := []struct {
+		id           string
+		filter       *SearchFilterType
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"no filter", nil, expectedType, false, ""},
+		{"filter", &filter, expectedType, false, ""},
 	}
 
-	t.Log("filter")
-	{
-		filter := SearchFilterType(map[string][]string{"f_name_wildcard": {"*ops*"}})
-		accounts, err := apih.SearchAccounts(&filter)
-		if err != nil {
-			t.Fatalf("unexpected error (%s)", err)
-		}
-
-		actualType := reflect.TypeOf(accounts)
-		if actualType.String() != expectedType {
-			t.Fatalf("unexpected type (%s)", actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.SearchAccounts(test.filter)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }

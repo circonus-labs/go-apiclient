@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // DashboardGridLayout defines layout
@@ -217,7 +218,7 @@ func NewDashboard() *Dashboard {
 // FetchDashboard retrieves dashboard with passed cid.
 func (a *API) FetchDashboard(cid CIDType) (*Dashboard, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid dashboard CID [none]")
+		return nil, errors.New("invalid dashboard CID (none)")
 	}
 
 	var dashboardCID string
@@ -232,21 +233,21 @@ func (a *API) FetchDashboard(cid CIDType) (*Dashboard, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid dashboard CID [%s]", dashboardCID)
+		return nil, errors.Errorf("invalid dashboard CID (%s)", dashboardCID)
 	}
 
 	result, err := a.Get(dashboardCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching dashobard")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch dashboard, received JSON: %s", string(result))
+		a.Log.Printf("fetch dashboard, received JSON: %s", string(result))
 	}
 
 	dashboard := new(Dashboard)
 	if err := json.Unmarshal(result, dashboard); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing dashboard")
 	}
 
 	return dashboard, nil
@@ -256,12 +257,12 @@ func (a *API) FetchDashboard(cid CIDType) (*Dashboard, error) {
 func (a *API) FetchDashboards() (*[]Dashboard, error) {
 	result, err := a.Get(config.DashboardPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching dashboards")
 	}
 
 	var dashboards []Dashboard
 	if err := json.Unmarshal(result, &dashboards); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing dashboards")
 	}
 
 	return &dashboards, nil
@@ -270,7 +271,7 @@ func (a *API) FetchDashboards() (*[]Dashboard, error) {
 // UpdateDashboard updates passed dashboard.
 func (a *API) UpdateDashboard(cfg *Dashboard) (*Dashboard, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid dashboard config [nil]")
+		return nil, errors.New("invalid dashboard config (nil)")
 	}
 
 	dashboardCID := cfg.CID
@@ -280,7 +281,7 @@ func (a *API) UpdateDashboard(cfg *Dashboard) (*Dashboard, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid dashboard CID [%s]", dashboardCID)
+		return nil, errors.Errorf("invalid dashboard CID (%s)", dashboardCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -289,17 +290,17 @@ func (a *API) UpdateDashboard(cfg *Dashboard) (*Dashboard, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update dashboard, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update dashboard, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(dashboardCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating dashobard")
 	}
 
 	dashboard := &Dashboard{}
 	if err := json.Unmarshal(result, dashboard); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing dashboard")
 	}
 
 	return dashboard, nil
@@ -308,7 +309,7 @@ func (a *API) UpdateDashboard(cfg *Dashboard) (*Dashboard, error) {
 // CreateDashboard creates a new dashboard.
 func (a *API) CreateDashboard(cfg *Dashboard) (*Dashboard, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid dashboard config [nil]")
+		return nil, errors.New("invalid dashboard config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -317,17 +318,17 @@ func (a *API) CreateDashboard(cfg *Dashboard) (*Dashboard, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] create dashboard, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("create dashboard, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Post(config.DashboardPrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating dashboard")
 	}
 
 	dashboard := &Dashboard{}
 	if err := json.Unmarshal(result, dashboard); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing dashboard")
 	}
 
 	return dashboard, nil
@@ -336,7 +337,7 @@ func (a *API) CreateDashboard(cfg *Dashboard) (*Dashboard, error) {
 // DeleteDashboard deletes passed dashboard.
 func (a *API) DeleteDashboard(cfg *Dashboard) (bool, error) {
 	if cfg == nil {
-		return false, fmt.Errorf("Invalid dashboard config [nil]")
+		return false, errors.New("invalid dashboard config (nil)")
 	}
 	return a.DeleteDashboardByCID(CIDType(&cfg.CID))
 }
@@ -344,22 +345,27 @@ func (a *API) DeleteDashboard(cfg *Dashboard) (bool, error) {
 // DeleteDashboardByCID deletes dashboard with passed cid.
 func (a *API) DeleteDashboardByCID(cid CIDType) (bool, error) {
 	if cid == nil || *cid == "" {
-		return false, fmt.Errorf("Invalid dashboard CID [none]")
+		return false, errors.New("invalid dashboard CID (none)")
 	}
 
-	dashboardCID := *cid
+	var dashboardCID string
+	if !strings.HasPrefix(*cid, config.DashboardPrefix) {
+		dashboardCID = fmt.Sprintf("%s/%s", config.DashboardPrefix, *cid)
+	} else {
+		dashboardCID = *cid
+	}
 
 	matched, err := regexp.MatchString(config.DashboardCIDRegex, dashboardCID)
 	if err != nil {
 		return false, err
 	}
 	if !matched {
-		return false, fmt.Errorf("Invalid dashboard CID [%s]", dashboardCID)
+		return false, errors.Errorf("invalid dashboard CID (%s)", dashboardCID)
 	}
 
 	_, err = a.Delete(dashboardCID)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "deleting dashboard")
 	}
 
 	return true, nil
@@ -394,12 +400,12 @@ func (a *API) SearchDashboards(searchCriteria *SearchQueryType, filterCriteria *
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching dashboards")
 	}
 
 	var dashboards []Dashboard
 	if err := json.Unmarshal(result, &dashboards); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing dashobards")
 	}
 
 	return &dashboards, nil

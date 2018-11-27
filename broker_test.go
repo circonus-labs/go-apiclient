@@ -6,14 +6,11 @@ package apiclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
-
-	"github.com/circonus-labs/go-apiclient/config"
 )
 
 var (
@@ -99,178 +96,115 @@ func testBrokerServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
-func TestFetchBroker(t *testing.T) {
+func brokerTestBootstrap(t *testing.T) (*API, *httptest.Server) {
 	server := testBrokerServer()
-	defer server.Close()
-
-	var apih *API
-	var err error
 
 	ac := &Config{
 		TokenKey: "abc123",
 		TokenApp: "test",
 		URL:      server.URL,
 	}
-	apih, err = New(ac)
+	apih, err := NewAPI(ac)
 	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
 	}
 
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid broker CID [none]")
-		_, err := apih.FetchBroker(nil)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	return apih, server
+}
+
+func TestFetchBroker(t *testing.T) {
+	apih, server := brokerTestBootstrap(t)
+	defer server.Close()
+
+	tests := []struct {
+		id           string
+		cid          string
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"empty cid", "", "", true, "invalid broker CID (none)"},
+		{"invalid cid", "/invalid", "", true, "invalid broker CID (/broker//invalid)"},
+		{"short cid", "1234", "*apiclient.Broker", false, ""},
+		{"long cid", "/broker/1234", "*apiclient.Broker", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid broker CID [none]")
-		_, err := apih.FetchBroker(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid broker CID [" + config.BrokerPrefix + "/" + cid + "]")
-		_, err := apih.FetchBroker(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := CIDType(&testBroker.CID)
-		broker, err := apih.FetchBroker(cid)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(broker)
-		expectedType := "*apiclient.Broker"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-
-		if broker.CID != testBroker.CID {
-			t.Fatalf("CIDs do not match: %+v != %+v\n", broker, testBroker)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			alert, err := apih.FetchBroker(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(alert).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(alert).String())
+				}
+			}
+		})
 	}
 }
 
 func TestFetchBrokers(t *testing.T) {
-	server := testBrokerServer()
+	apih, server := brokerTestBootstrap(t)
 	defer server.Close()
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := New(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
 
 	brokers, err := apih.FetchBrokers()
 	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
+		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	actualType := reflect.TypeOf(brokers)
-	expectedType := "*[]apiclient.Broker"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	if reflect.TypeOf(brokers).String() != "*[]apiclient.Broker" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(brokers).String())
 	}
 }
 
 func TestSearchBrokers(t *testing.T) {
-	server := testBrokerServer()
+	apih, server := brokerTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := New(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
+	expectedType := "*[]apiclient.Broker"
+	search := SearchQueryType("httptrap")
+	filter := SearchFilterType{"f__type": []string{"enterprise"}}
 
-	t.Log("no search, no filter")
-	{
-		brokers, err := apih.SearchBrokers(nil, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-
-		actualType := reflect.TypeOf(brokers)
-		expectedType := "*[]apiclient.Broker"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	tests := []struct {
+		id           string
+		search       *SearchQueryType
+		filter       *SearchFilterType
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"no search, no filter", nil, nil, expectedType, false, ""},
+		{"search no filter", &search, nil, expectedType, false, ""},
+		{"filter no search", nil, &filter, expectedType, false, ""},
+		{"both filter and search", &search, &filter, expectedType, false, ""},
 	}
 
-	t.Log("search, no filter")
-	{
-		search := SearchQueryType("httptrap")
-		brokers, err := apih.SearchBrokers(&search, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-
-		actualType := reflect.TypeOf(brokers)
-		expectedType := "*[]apiclient.Broker"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("no search, filter")
-	{
-		filter := SearchFilterType{"f__type": []string{"enterprise"}}
-		brokers, err := apih.SearchBrokers(nil, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-
-		actualType := reflect.TypeOf(brokers)
-		expectedType := "*[]apiclient.Broker"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("search, filter")
-	{
-		search := SearchQueryType("httptrap")
-		filter := SearchFilterType{"f__type": []string{"enterprise"}}
-		brokers, err := apih.SearchBrokers(&search, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-
-		actualType := reflect.TypeOf(brokers)
-		expectedType := "*[]apiclient.Broker"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.SearchBrokers(test.search, test.filter)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }

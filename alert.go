@@ -39,11 +39,6 @@ type Alert struct {
 	Value              string   `json:"_value,omitempty"`           // string
 }
 
-// NewAlert returns a new alert (with defaults, if applicable)
-func NewAlert() *Alert {
-	return &Alert{}
-}
-
 // FetchAlert retrieves alert with passed cid.
 func (a *API) FetchAlert(cid CIDType) (*Alert, error) {
 	if cid == nil || *cid == "" {
@@ -76,7 +71,7 @@ func (a *API) FetchAlert(cid CIDType) (*Alert, error) {
 
 	alert := &Alert{}
 	if err := json.Unmarshal(result, alert); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing alert")
 	}
 
 	return alert, nil
@@ -91,7 +86,7 @@ func (a *API) FetchAlerts() (*[]Alert, error) {
 
 	var alerts []Alert
 	if err := json.Unmarshal(result, &alerts); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing alerts")
 	}
 
 	return &alerts, nil
@@ -131,7 +126,7 @@ func (a *API) SearchAlerts(searchCriteria *SearchQueryType, filterCriteria *Sear
 
 	var alerts []Alert
 	if err := json.Unmarshal(result, &alerts); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing alerts")
 	}
 
 	return &alerts, nil

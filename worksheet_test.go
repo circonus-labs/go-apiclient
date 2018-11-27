@@ -6,15 +6,12 @@ package apiclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
-
-	"github.com/circonus-labs/go-apiclient/config"
 )
 
 var (
@@ -123,401 +120,269 @@ func testWorksheetServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
+func worksheetTestBootstrap(t *testing.T) (*API, *httptest.Server) {
+	server := testWorksheetServer()
+
+	ac := &Config{
+		TokenKey: "abc123",
+		TokenApp: "test",
+		URL:      server.URL,
+	}
+	apih, err := NewAPI(ac)
+	if err != nil {
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
+	}
+
+	return apih, server
+}
+
 func TestNewWorksheet(t *testing.T) {
-	bundle := NewWorksheet()
-	actualType := reflect.TypeOf(bundle)
-	expectedType := "*apiclient.Worksheet"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	worksheet := NewWorksheet()
+	if reflect.TypeOf(worksheet).String() != "*apiclient.Worksheet" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(worksheet).String())
 	}
 }
 
 func TestFetchWorksheet(t *testing.T) {
-	server := testWorksheetServer()
+	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid worksheet CID [none]")
-		_, err := apih.FetchWorksheet(nil)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cid          string
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"empty cid", "", "", true, "invalid worksheet CID (none)"},
+		{"invalid cid", "/invalid", "", true, "invalid worksheet CID (/worksheet//invalid)"},
+		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Worksheet", false, ""},
+		{"long cid", "/worksheet/01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Worksheet", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid worksheet CID [none]")
-		_, err := apih.FetchWorksheet(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid worksheet CID [" + config.WorksheetPrefix + "/" + cid + "]")
-		_, err := apih.FetchWorksheet(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := "/worksheet/01234567-89ab-cdef-0123-456789abcdef"
-		worksheet, err := apih.FetchWorksheet(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(worksheet)
-		expectedType := "*apiclient.Worksheet"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-
-		if worksheet.CID != testWorksheet.CID {
-			t.Fatalf("CIDs do not match: %+v != %+v\n", worksheet, testWorksheet)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			alert, err := apih.FetchWorksheet(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(alert).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(alert).String())
+				}
+			}
+		})
 	}
 }
 
 func TestFetchWorksheets(t *testing.T) {
-	server := testWorksheetServer()
+	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
 
 	worksheets, err := apih.FetchWorksheets()
 	if err != nil {
-		t.Fatalf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	actualType := reflect.TypeOf(worksheets)
-	expectedType := "*[]apiclient.Worksheet"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	if reflect.TypeOf(worksheets).String() != "*[]apiclient.Worksheet" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(worksheets).String())
 	}
 
 }
 
 func TestUpdateWorksheet(t *testing.T) {
-	server := testWorksheetServer()
+	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid worksheet config [nil]")
-		_, err := apih.UpdateWorksheet(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cfg          *Worksheet
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (nil)", nil, "", true, "invalid worksheet config (nil)"},
+		{"invalid (cid)", &Worksheet{CID: "/invalid"}, "", true, "invalid worksheet CID (/invalid)"},
+		{"valid", &testWorksheet, "*apiclient.Worksheet", false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid worksheet CID [/invalid]")
-		x := &Worksheet{CID: "/invalid"}
-		_, err := apih.UpdateWorksheet(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			maint, err := apih.UpdateWorksheet(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(maint).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(maint).String())
+				}
+			}
+		})
 	}
-
-	t.Log("valid config")
-	{
-		worksheet, err := apih.UpdateWorksheet(&testWorksheet)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(worksheet)
-		expectedType := "*apiclient.Worksheet"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
 }
 
 func TestCreateWorksheet(t *testing.T) {
-	server := testWorksheetServer()
+	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid worksheet config [nil]")
-		_, err := apih.CreateWorksheet(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cfg          *Worksheet
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (nil)", nil, "", true, "invalid worksheet config (nil)"},
+		{"valid", &testWorksheet, "*apiclient.Worksheet", false, ""},
 	}
 
-	t.Log("valid config")
-	{
-		worksheet, err := apih.CreateWorksheet(&testWorksheet)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(worksheet)
-		expectedType := "*apiclient.Worksheet"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.CreateWorksheet(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }
 
 func TestDeleteWorksheet(t *testing.T) {
-	server := testWorksheetServer()
+	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid worksheet config [nil]")
-		_, err := apih.DeleteWorksheet(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cfg         *Worksheet
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"invalid (nil)", nil, true, "invalid worksheet config (nil)"},
+		{"invalid (cid)", &Worksheet{CID: "/invalid"}, true, "invalid worksheet CID (/worksheet//invalid)"},
+		{"valid", &testWorksheet, false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid worksheet CID [/invalid]")
-		x := &Worksheet{CID: "/invalid"}
-		_, err := apih.DeleteWorksheet(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteWorksheet(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
-
-	t.Log("valid config")
-	{
-		_, err := apih.DeleteWorksheet(&testWorksheet)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-	}
-
 }
 
 func TestDeleteWorksheetByCID(t *testing.T) {
-	server := testWorksheetServer()
+	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid worksheet CID [none]")
-		_, err := apih.DeleteWorksheetByCID(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cid         string
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"empty cid", "", true, "invalid worksheet CID (none)"},
+		{"invalid cid", "/invalid", true, "invalid worksheet CID (/worksheet//invalid)"},
+		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", false, ""},
+		{"long cid", "/worksheet/01234567-89ab-cdef-0123-456789abcdef", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid worksheet CID [none]")
-		_, err := apih.DeleteWorksheetByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid worksheet CID [/invalid]")
-		_, err := apih.DeleteWorksheetByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := "/worksheet/01234567-89ab-cdef-0123-456789abcdef"
-		_, err := apih.DeleteWorksheetByCID(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteWorksheetByCID(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
 }
 
 func TestSearchWorksheets(t *testing.T) {
-	server := testWorksheetServer()
+	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
+	expectedType := "*[]apiclient.Worksheet"
 	search := SearchQueryType("web servers")
 	filter := SearchFilterType(map[string][]string{"f_favorite": {"true"}})
 
-	t.Log("no search, no filter")
-	{
-		worksheets, err := apih.SearchWorksheets(nil, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(worksheets)
-		expectedType := "*[]apiclient.Worksheet"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	tests := []struct {
+		id           string
+		search       *SearchQueryType
+		filter       *SearchFilterType
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"no search, no filter", nil, nil, expectedType, false, ""},
+		{"search no filter", &search, nil, expectedType, false, ""},
+		{"filter no search", nil, &filter, expectedType, false, ""},
+		{"both filter and search", &search, &filter, expectedType, false, ""},
 	}
 
-	t.Log("search, no filter")
-	{
-		worksheets, err := apih.SearchWorksheets(&search, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(worksheets)
-		expectedType := "*[]apiclient.Worksheet"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("no search, filter")
-	{
-		worksheets, err := apih.SearchWorksheets(nil, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(worksheets)
-		expectedType := "*[]apiclient.Worksheet"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("search, filter")
-	{
-		worksheets, err := apih.SearchWorksheets(&search, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(worksheets)
-		expectedType := "*[]apiclient.Worksheet"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.SearchWorksheets(test.search, test.filter)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }

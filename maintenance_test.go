@@ -6,15 +6,12 @@ package apiclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
-
-	"github.com/circonus-labs/go-apiclient/config"
 )
 
 var (
@@ -113,396 +110,268 @@ func testMaintenanceServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
+func maintenanceTestBootstrap(t *testing.T) (*API, *httptest.Server) {
+	server := testMaintenanceServer()
+
+	ac := &Config{
+		TokenKey: "abc123",
+		TokenApp: "test",
+		URL:      server.URL,
+	}
+	apih, err := NewAPI(ac)
+	if err != nil {
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
+	}
+
+	return apih, server
+}
+
 func TestNewMaintenanceWindow(t *testing.T) {
-	bundle := NewMaintenanceWindow()
-	actualType := reflect.TypeOf(bundle)
-	expectedType := "*apiclient.Maintenance"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	maintenance := NewMaintenanceWindow()
+	if reflect.TypeOf(maintenance).String() != "*apiclient.Maintenance" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(maintenance).String())
 	}
 }
 
 func TestFetchMaintenanceWindow(t *testing.T) {
-	server := testMaintenanceServer()
+	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid maintenance window CID [none]")
-		_, err := apih.FetchMaintenanceWindow(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cid          string
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"empty cid", "", "", true, "invalid maintenance window CID (none)"},
+		{"invalid cid", "/invalid", "", true, "invalid maintenance window CID (/maintenance//invalid)"},
+		{"short cid", "1234", "*apiclient.Maintenance", false, ""},
+		{"long cid", "/maintenance/1234", "*apiclient.Maintenance", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid maintenance window CID [none]")
-		_, err := apih.FetchMaintenanceWindow(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid maintenance window CID [" + config.MaintenancePrefix + "/" + cid + "]")
-		_, err := apih.FetchMaintenanceWindow(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := "/maintenance/1234"
-		maintenance, err := apih.FetchMaintenanceWindow(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(maintenance)
-		expectedType := "*apiclient.Maintenance"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-
-		if maintenance.CID != testMaintenance.CID {
-			t.Fatalf("CIDs do not match: %+v != %+v\n", maintenance, testMaintenance)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			alert, err := apih.FetchMaintenanceWindow(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(alert).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(alert).String())
+				}
+			}
+		})
 	}
 }
 
 func TestFetchMaintenanceWindows(t *testing.T) {
-	server := testMaintenanceServer()
+	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
 
 	maintenances, err := apih.FetchMaintenanceWindows()
 	if err != nil {
-		t.Fatalf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	actualType := reflect.TypeOf(maintenances)
-	expectedType := "*[]apiclient.Maintenance"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	if reflect.TypeOf(maintenances).String() != "*[]apiclient.Maintenance" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(maintenances).String())
 	}
-
 }
 
 func TestUpdateMaintenanceWindow(t *testing.T) {
-	server := testMaintenanceServer()
+	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid maintenance window config [nil]")
-		_, err := apih.UpdateMaintenanceWindow(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cfg          *Maintenance
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (nil)", nil, "", true, "invalid maintenance window config (nil)"},
+		{"invalid (cid)", &Maintenance{CID: "/invalid"}, "", true, "invalid maintenance window CID (/invalid)"},
+		{"valid", &testMaintenance, "*apiclient.Maintenance", false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid maintenance window CID [/invalid]")
-		x := &Maintenance{CID: "/invalid"}
-		_, err := apih.UpdateMaintenanceWindow(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		maintenance, err := apih.UpdateMaintenanceWindow(&testMaintenance)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(maintenance)
-		expectedType := "*apiclient.Maintenance"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			maint, err := apih.UpdateMaintenanceWindow(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(maint).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(maint).String())
+				}
+			}
+		})
 	}
 }
 
 func TestCreateMaintenanceWindow(t *testing.T) {
-	server := testMaintenanceServer()
+	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid maintenance window config [nil]")
-		_, err := apih.CreateMaintenanceWindow(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cfg          *Maintenance
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (nil)", nil, "", true, "invalid maintenance window config (nil)"},
+		{"valid", &testMaintenance, "*apiclient.Maintenance", false, ""},
 	}
 
-	t.Log("valid config")
-	{
-		maintenance, err := apih.CreateMaintenanceWindow(&testMaintenance)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(maintenance)
-		expectedType := "*apiclient.Maintenance"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.CreateMaintenanceWindow(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }
 
 func TestDeleteMaintenanceWindow(t *testing.T) {
-	server := testMaintenanceServer()
+	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid maintenance window config [nil]")
-		_, err := apih.DeleteMaintenanceWindow(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cfg         *Maintenance
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"invalid (nil)", nil, true, "invalid maintenance window config (nil)"},
+		{"invalid (cid)", &Maintenance{CID: "/invalid"}, true, "invalid maintenance window CID (/maintenance//invalid)"},
+		{"valid", &testMaintenance, false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid maintenance window CID [/invalid]")
-		x := &Maintenance{CID: "/invalid"}
-		_, err := apih.DeleteMaintenanceWindow(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		_, err := apih.DeleteMaintenanceWindow(&testMaintenance)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteMaintenanceWindow(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
 }
 
 func TestDeleteMaintenanceWindowByCID(t *testing.T) {
-	server := testMaintenanceServer()
+	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid maintenance window CID [none]")
-		_, err := apih.DeleteMaintenanceWindowByCID(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cid         string
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"empty cid", "", true, "invalid maintenance window CID (none)"},
+		{"invalid cid", "/invalid", true, "invalid maintenance window CID (/maintenance//invalid)"},
+		{"short cid", "1234", false, ""},
+		{"long cid", "/maintenance/1234", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid maintenance window CID [none]")
-		_, err := apih.DeleteMaintenanceWindowByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid maintenance window CID [/invalid]")
-		_, err := apih.DeleteMaintenanceWindowByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := "/maintenance/1234"
-		_, err := apih.DeleteMaintenanceWindowByCID(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteMaintenanceWindowByCID(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
 }
 
 func TestSearchMaintenances(t *testing.T) {
-	server := testMaintenanceServer()
+	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
+	expectedType := "*[]apiclient.Maintenance"
 	search := SearchQueryType("/check_bundle/1234")
 	filter := SearchFilterType(map[string][]string{"f_start_gt": {"1483639916"}})
 
-	t.Log("no search, no filter")
-	{
-		windows, err := apih.SearchMaintenanceWindows(nil, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(windows)
-		expectedType := "*[]apiclient.Maintenance"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	tests := []struct {
+		id           string
+		search       *SearchQueryType
+		filter       *SearchFilterType
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"no search, no filter", nil, nil, expectedType, false, ""},
+		{"search no filter", &search, nil, expectedType, false, ""},
+		{"filter no search", nil, &filter, expectedType, false, ""},
+		{"both filter and search", &search, &filter, expectedType, false, ""},
 	}
 
-	t.Log("search, no filter")
-	{
-		windows, err := apih.SearchMaintenanceWindows(&search, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(windows)
-		expectedType := "*[]apiclient.Maintenance"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("no search, filter")
-	{
-		windows, err := apih.SearchMaintenanceWindows(nil, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(windows)
-		expectedType := "*[]apiclient.Maintenance"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("search, filter")
-	{
-		windows, err := apih.SearchMaintenanceWindows(&search, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(windows)
-		expectedType := "*[]apiclient.Maintenance"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.SearchMaintenanceWindows(test.search, test.filter)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }

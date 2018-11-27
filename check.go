@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // CheckDetails contains [undocumented] check type specific information
@@ -34,7 +35,7 @@ type Check struct {
 // FetchCheck retrieves check with passed cid.
 func (a *API) FetchCheck(cid CIDType) (*Check, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid check CID [none]")
+		return nil, errors.New("invalid check CID (none)")
 	}
 
 	var checkCID string
@@ -49,21 +50,21 @@ func (a *API) FetchCheck(cid CIDType) (*Check, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid check CID [%s]", checkCID)
+		return nil, errors.Errorf("invalid check CID (%s)", checkCID)
 	}
 
 	result, err := a.Get(checkCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching check")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch check, received JSON: %s", string(result))
+		a.Log.Printf("fetch check, received JSON: %s", string(result))
 	}
 
 	check := new(Check)
 	if err := json.Unmarshal(result, check); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing check")
 	}
 
 	return check, nil
@@ -73,12 +74,12 @@ func (a *API) FetchCheck(cid CIDType) (*Check, error) {
 func (a *API) FetchChecks() (*[]Check, error) {
 	result, err := a.Get(config.CheckPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching checks")
 	}
 
 	var checks []Check
 	if err := json.Unmarshal(result, &checks); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing checks")
 	}
 
 	return &checks, nil
@@ -113,12 +114,12 @@ func (a *API) SearchChecks(searchCriteria *SearchQueryType, filterCriteria *Sear
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "searching checks")
 	}
 
 	var checks []Check
 	if err := json.Unmarshal(result, &checks); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing checks")
 	}
 
 	return &checks, nil

@@ -93,18 +93,8 @@ func testAlertServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
-func TestNewAlert(t *testing.T) {
-	bundle := NewAlert()
-	actualType := reflect.TypeOf(bundle)
-	expectedType := "*apiclient.Alert"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-	}
-}
-
-func TestFetchAlert(t *testing.T) {
+func alertTestBootstrap(t *testing.T) (*API, *httptest.Server) {
 	server := testAlertServer()
-	defer server.Close()
 
 	ac := &Config{
 		TokenKey: "abc123",
@@ -113,8 +103,17 @@ func TestFetchAlert(t *testing.T) {
 	}
 	apih, err := NewAPI(ac)
 	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
 	}
+
+	return apih, server
+}
+
+func TestFetchAlert(t *testing.T) {
+	apih, server := alertTestBootstrap(t)
+	defer server.Close()
 
 	tests := []struct {
 		id           string
@@ -151,47 +150,22 @@ func TestFetchAlert(t *testing.T) {
 }
 
 func TestFetchAlerts(t *testing.T) {
-	server := testAlertServer()
+	apih, server := alertTestBootstrap(t)
 	defer server.Close()
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
 
 	alerts, err := apih.FetchAlerts()
 	if err != nil {
-		t.Fatalf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	actualType := reflect.TypeOf(alerts)
-	expectedType := "*[]apiclient.Alert"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	if reflect.TypeOf(alerts).String() != "*[]apiclient.Alert" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(alerts).String())
 	}
-
 }
 
 func TestSearchAlerts(t *testing.T) {
-	server := testAlertServer()
+	apih, server := alertTestBootstrap(t)
 	defer server.Close()
-
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
 
 	expectedType := "*[]apiclient.Alert"
 	search := SearchQueryType(`(host="somehost.example.com")`)

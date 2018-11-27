@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // UserContactInfo defines known contact details
@@ -52,21 +53,21 @@ func (a *API) FetchUser(cid CIDType) (*User, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid user CID [%s]", userCID)
+		return nil, errors.Errorf("invalid user CID (%s)", userCID)
 	}
 
 	result, err := a.Get(userCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching user")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch user, received JSON: %s", string(result))
+		a.Log.Printf("fetch user, received JSON: %s", string(result))
 	}
 
 	user := new(User)
 	if err := json.Unmarshal(result, user); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing user")
 	}
 
 	return user, nil
@@ -76,12 +77,12 @@ func (a *API) FetchUser(cid CIDType) (*User, error) {
 func (a *API) FetchUsers() (*[]User, error) {
 	result, err := a.Get(config.UserPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching users")
 	}
 
 	var users []User
 	if err := json.Unmarshal(result, &users); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing users")
 	}
 
 	return &users, nil
@@ -90,7 +91,7 @@ func (a *API) FetchUsers() (*[]User, error) {
 // UpdateUser updates passed user.
 func (a *API) UpdateUser(cfg *User) (*User, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid user config [nil]")
+		return nil, errors.New("invalid user config (nil)")
 	}
 
 	userCID := cfg.CID
@@ -100,7 +101,7 @@ func (a *API) UpdateUser(cfg *User) (*User, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid user CID [%s]", userCID)
+		return nil, errors.Errorf("invalid user CID (%s)", userCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -109,17 +110,17 @@ func (a *API) UpdateUser(cfg *User) (*User, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update user, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update user, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(userCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating user")
 	}
 
 	user := &User{}
 	if err := json.Unmarshal(result, user); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing user")
 	}
 
 	return user, nil
@@ -150,12 +151,12 @@ func (a *API) SearchUsers(filterCriteria *SearchFilterType) (*[]User, error) {
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching users")
 	}
 
 	var users []User
 	if err := json.Unmarshal(result, &users); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing user")
 	}
 
 	return &users, nil

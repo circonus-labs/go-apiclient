@@ -107,17 +107,8 @@ func testAcknowledgementServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
-func TestNewAcknowledgement(t *testing.T) {
-	bundle := NewAcknowledgement()
-	actualType := reflect.TypeOf(bundle)
-	if actualType.String() != "*apiclient.Acknowledgement" {
-		t.Fatalf("unexpected type (%s)", actualType.String())
-	}
-}
-
-func TestFetchAcknowledgement(t *testing.T) {
+func acknowledgementTestBootstrap(t *testing.T) (*API, *httptest.Server) {
 	server := testAcknowledgementServer()
-	defer server.Close()
 
 	ac := &Config{
 		TokenKey: "abc123",
@@ -126,8 +117,24 @@ func TestFetchAcknowledgement(t *testing.T) {
 	}
 	apih, err := NewAPI(ac)
 	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
 	}
+
+	return apih, server
+}
+
+func TestNewAcknowledgement(t *testing.T) {
+	ack := NewAcknowledgement()
+	if reflect.TypeOf(ack).String() != "*apiclient.Acknowledgement" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+	}
+}
+
+func TestFetchAcknowledgement(t *testing.T) {
+	apih, server := acknowledgementTestBootstrap(t)
+	defer server.Close()
 
 	tests := []struct {
 		id           string
@@ -164,45 +171,22 @@ func TestFetchAcknowledgement(t *testing.T) {
 }
 
 func TestFetchAcknowledgements(t *testing.T) {
-	server := testAcknowledgementServer()
+	apih, server := acknowledgementTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
+	acks, err := apih.FetchAcknowledgements()
 	if err != nil {
 		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	acknowledgements, err := apih.FetchAcknowledgements()
-	if err != nil {
-		t.Fatalf("unexpected error (%s)", err)
-	}
-
-	actualType := reflect.TypeOf(acknowledgements)
-	if actualType.String() != "*[]apiclient.Acknowledgement" {
-		t.Fatalf("unexpected type (%s)", actualType.String())
+	if reflect.TypeOf(acks).String() != "*[]apiclient.Acknowledgement" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(acks).String())
 	}
 }
 
 func TestUpdateAcknowledgement(t *testing.T) {
-	server := testAcknowledgementServer()
+	apih, server := acknowledgementTestBootstrap(t)
 	defer server.Close()
-
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
 
 	tests := []struct {
 		id          string
@@ -235,18 +219,8 @@ func TestUpdateAcknowledgement(t *testing.T) {
 }
 
 func TestCreateAcknowledgement(t *testing.T) {
-	server := testAcknowledgementServer()
+	apih, server := acknowledgementTestBootstrap(t)
 	defer server.Close()
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Fatalf("unexpected error (%s)", err)
-	}
 
 	tests := []struct {
 		id           string
@@ -282,20 +256,8 @@ func TestCreateAcknowledgement(t *testing.T) {
 }
 
 func TestSearchAcknowledgement(t *testing.T) {
-	server := testAcknowledgementServer()
+	apih, server := acknowledgementTestBootstrap(t)
 	defer server.Close()
-
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Fatalf("unexpected error (%s)", err)
-	}
 
 	expectedType := "*[]apiclient.Acknowledgement"
 	search := SearchQueryType(`(notes="something")`)

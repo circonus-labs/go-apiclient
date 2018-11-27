@@ -69,7 +69,7 @@ func (a *API) FetchAcknowledgement(cid CIDType) (*Acknowledgement, error) {
 
 	acknowledgement := &Acknowledgement{}
 	if err := json.Unmarshal(result, acknowledgement); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing acknowledgement")
 	}
 
 	return acknowledgement, nil
@@ -84,7 +84,7 @@ func (a *API) FetchAcknowledgements() (*[]Acknowledgement, error) {
 
 	var acknowledgements []Acknowledgement
 	if err := json.Unmarshal(result, &acknowledgements); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing acknowledgements")
 	}
 
 	return &acknowledgements, nil
@@ -122,7 +122,7 @@ func (a *API) UpdateAcknowledgement(cfg *Acknowledgement) (*Acknowledgement, err
 
 	acknowledgement := &Acknowledgement{}
 	if err := json.Unmarshal(result, acknowledgement); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing acknowledgement")
 	}
 
 	return acknowledgement, nil
@@ -150,7 +150,7 @@ func (a *API) CreateAcknowledgement(cfg *Acknowledgement) (*Acknowledgement, err
 
 	acknowledgement := &Acknowledgement{}
 	if err := json.Unmarshal(result, acknowledgement); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing acknowledgement")
 	}
 
 	return acknowledgement, nil
@@ -190,7 +190,7 @@ func (a *API) SearchAcknowledgements(searchCriteria *SearchQueryType, filterCrit
 
 	var acknowledgements []Acknowledgement
 	if err := json.Unmarshal(result, &acknowledgements); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing acknowledgements")
 	}
 
 	return &acknowledgements, nil
