@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // BrokerStratcon defines stratcons for broker
@@ -51,7 +52,7 @@ func NewProvisionBroker() *ProvisionBroker {
 // FetchProvisionBroker retrieves provision broker [request] with passed cid.
 func (a *API) FetchProvisionBroker(cid CIDType) (*ProvisionBroker, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid provision broker request CID [none]")
+		return nil, errors.New("invalid provision broker CID (none)")
 	}
 
 	var brokerCID string
@@ -66,21 +67,21 @@ func (a *API) FetchProvisionBroker(cid CIDType) (*ProvisionBroker, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid provision broker request CID [%s]", brokerCID)
+		return nil, errors.Errorf("invalid provision broker CID (%s)", brokerCID)
 	}
 
 	result, err := a.Get(brokerCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching provision broker")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch broker provision request, received JSON: %s", string(result))
+		a.Log.Printf("fetch broker provision request, received JSON: %s", string(result))
 	}
 
 	broker := &ProvisionBroker{}
 	if err := json.Unmarshal(result, broker); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing provision broker")
 	}
 
 	return broker, nil
@@ -88,12 +89,12 @@ func (a *API) FetchProvisionBroker(cid CIDType) (*ProvisionBroker, error) {
 
 // UpdateProvisionBroker updates a broker definition [request].
 func (a *API) UpdateProvisionBroker(cid CIDType, cfg *ProvisionBroker) (*ProvisionBroker, error) {
-	if cfg == nil {
-		return nil, fmt.Errorf("Invalid provision broker request config [nil]")
+	if cid == nil || *cid == "" {
+		return nil, errors.New("invalid provision broker CID (none)")
 	}
 
-	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid provision broker request CID [none]")
+	if cfg == nil {
+		return nil, errors.New("invalid provision broker config (nil)")
 	}
 
 	brokerCID := *cid
@@ -103,7 +104,7 @@ func (a *API) UpdateProvisionBroker(cid CIDType, cfg *ProvisionBroker) (*Provisi
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid provision broker request CID [%s]", brokerCID)
+		return nil, errors.Errorf("invalid provision broker CID (%s)", brokerCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -112,17 +113,17 @@ func (a *API) UpdateProvisionBroker(cid CIDType, cfg *ProvisionBroker) (*Provisi
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update broker provision request, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update broker provision request, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(brokerCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating provision broker")
 	}
 
 	broker := &ProvisionBroker{}
 	if err := json.Unmarshal(result, broker); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing provision broker")
 	}
 
 	return broker, nil
@@ -131,7 +132,7 @@ func (a *API) UpdateProvisionBroker(cid CIDType, cfg *ProvisionBroker) (*Provisi
 // CreateProvisionBroker creates a new provison broker [request].
 func (a *API) CreateProvisionBroker(cfg *ProvisionBroker) (*ProvisionBroker, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid provision broker request config [nil]")
+		return nil, errors.New("invalid provision broker config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -140,17 +141,17 @@ func (a *API) CreateProvisionBroker(cfg *ProvisionBroker) (*ProvisionBroker, err
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] create broker provision request, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("create broker provision request, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Post(config.ProvisionBrokerPrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating provision broker")
 	}
 
 	broker := &ProvisionBroker{}
 	if err := json.Unmarshal(result, broker); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing provision broker")
 	}
 
 	return broker, nil

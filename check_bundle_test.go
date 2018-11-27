@@ -6,7 +6,6 @@ package apiclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -120,371 +119,265 @@ func testCheckBundleServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
+func checkBundleTestBootstrap(t *testing.T) (*API, *httptest.Server) {
+	server := testCheckBundleServer()
+
+	ac := &Config{
+		TokenKey: "abc123",
+		TokenApp: "test",
+		URL:      server.URL,
+	}
+	apih, err := NewAPI(ac)
+	if err != nil {
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
+	}
+
+	return apih, server
+}
+
 func TestNewCheckBundle(t *testing.T) {
 	bundle := NewCheckBundle()
-	actualType := reflect.TypeOf(bundle)
-	expectedType := "*apiclient.CheckBundle"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	if reflect.TypeOf(bundle).String() != "*apiclient.CheckBundle" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(bundle).String())
 	}
 }
 
 func TestFetchCheckBundle(t *testing.T) {
-	server := testCheckBundleServer()
+	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
+	tests := []struct {
+		id           string
+		cid          string
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"empty cid", "", "", true, "invalid check bundle CID (none)"},
+		{"invalid cid", "/invalid", "", true, "invalid check bundle CID (/check_bundle//invalid)"},
+		{"short cid", "1234", "*apiclient.CheckBundle", false, ""},
+		{"long cid", "/check_bundle/1234", "*apiclient.CheckBundle", false, ""},
 	}
-	apih, err := New(ac)
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			alert, err := apih.FetchCheckBundle(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(alert).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(alert).String())
+				}
+			}
+		})
+	}
+}
+
+func TestFetchCheckBundles(t *testing.T) {
+	apih, server := checkBundleTestBootstrap(t)
+	defer server.Close()
+
+	bundles, err := apih.FetchCheckBundles()
 	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid check bundle CID [none]")
-		_, err := apih.FetchCheckBundle(nil)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid check bundle CID [none]")
-		_, err := apih.FetchCheckBundle(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid check bundle CID [" + config.CheckBundlePrefix + "/" + cid + "]")
-		_, err := apih.FetchCheckBundle(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := CIDType(&testCheckBundle.CID)
-		bundle, err := apih.FetchCheckBundle(cid)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(bundle)
-		expectedType := "*apiclient.CheckBundle"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-
-		if bundle.CID != testCheckBundle.CID {
-			t.Fatalf("CIDs do not match: %+v != %+v\n", bundle, testCheckBundle)
-		}
+	if reflect.TypeOf(bundles).String() != "*[]apiclient.CheckBundle" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(bundles).String())
 	}
 }
 
 func TestUpdateCheckBundle(t *testing.T) {
-	server := testCheckBundleServer()
+	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid check bundle config [nil]")
-		_, err = apih.UpdateCheckBundle(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cfg         *CheckBundle
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"invalid (nil)", nil, true, "invalid check bundle config (nil)"},
+		{"invalid (cid)", &CheckBundle{CID: "/invalid"}, true, "invalid check bundle CID (/invalid)"},
+		{"valid", &testCheckBundle, false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid check bundle CID [/invalid]")
-		x := &CheckBundle{CID: "/invalid"}
-		_, err = apih.UpdateCheckBundle(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		bundle, err := apih.UpdateCheckBundle(&testCheckBundle)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(bundle)
-		expectedType := "*apiclient.CheckBundle"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			_, err := apih.UpdateCheckBundle(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			}
+		})
 	}
 }
 
 func TestCreateCheckBundle(t *testing.T) {
-	server := testCheckBundleServer()
+	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid check bundle config [nil]")
-		_, err = apih.CreateCheckBundle(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cfg          *CheckBundle
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (nil)", nil, "", true, "invalid check bundle config (nil)"},
+		{"valid", &testCheckBundle, "*apiclient.CheckBundle", false, ""},
 	}
 
-	t.Log("valid config")
-	{
-		bundle, err := apih.CreateCheckBundle(&testCheckBundle)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(bundle)
-		expectedType := "*apiclient.CheckBundle"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.CreateCheckBundle(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }
 
 func TestDeleteCheckBundle(t *testing.T) {
-	server := testCheckBundleServer()
+	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid check bundle config [nil]")
-		_, err := apih.DeleteCheckBundle(nil)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cfg         *CheckBundle
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"invalid (nil)", nil, true, "invalid check bundle config (nil)"},
+		{"invalid (cid)", &CheckBundle{CID: "/invalid"}, true, "invalid check bundle CID (/check_bundle//invalid)"},
+		{"valid", &testCheckBundle, false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		cb := &CheckBundle{CID: "/invalid"}
-		expectedError := errors.New("Invalid check bundle CID [/invalid]")
-		_, err := apih.DeleteCheckBundle(cb)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		success, err := apih.DeleteCheckBundle(&testCheckBundle)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		if !success {
-			t.Fatalf("Expected success to be true")
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteCheckBundle(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
 }
 
 func TestDeleteCheckBundleByCID(t *testing.T) {
-	server := testCheckBundleServer()
+	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid check bundle CID [none]")
-		_, err := apih.DeleteCheckBundleByCID(nil)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cid         string
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"empty cid", "", true, "invalid check bundle CID (none)"},
+		{"invalid cid", "/invalid", true, "invalid check bundle CID (/check_bundle//invalid)"},
+		{"short cid", "1234", false, ""},
+		{"long cid", "/check_bundle/1234", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid check bundle CID [none]")
-		_, err := apih.DeleteCheckBundleByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid check bundle CID [/invalid]")
-		_, err := apih.DeleteCheckBundleByCID(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := CIDType(&testCheckBundle.CID)
-		success, err := apih.DeleteCheckBundleByCID(cid)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		if !success {
-			t.Fatalf("Expected success to be true")
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			wasDeleted, err := apih.DeleteCheckBundleByCID(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if !wasDeleted {
+					t.Fatal("expected true (deleted)")
+				}
+			}
+		})
 	}
 }
 
 func TestSearchCheckBundles(t *testing.T) {
-	server := testCheckBundleServer()
+	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
+	expectedType := "*[]apiclient.CheckBundle"
+	search := SearchQueryType("test")
+	filter := SearchFilterType(map[string][]string{"f__tags_has": {"cat:tag"}})
 
-	t.Log("no search, no filter")
-	{
-		bundles, err := apih.SearchCheckBundles(nil, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(bundles)
-		expectedType := "*[]apiclient.CheckBundle"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	tests := []struct {
+		id           string
+		search       *SearchQueryType
+		filter       *SearchFilterType
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"no search, no filter", nil, nil, expectedType, false, ""},
+		{"search no filter", &search, nil, expectedType, false, ""},
+		{"filter no search", nil, &filter, expectedType, false, ""},
+		{"both filter and search", &search, &filter, expectedType, false, ""},
 	}
 
-	t.Log("search, no filter")
-	{
-		search := SearchQueryType("test")
-		bundles, err := apih.SearchCheckBundles(&search, nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(bundles)
-		expectedType := "*[]apiclient.CheckBundle"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("no search, filter")
-	{
-		filter := map[string][]string{"f__tags_has": {"cat:tag"}}
-		bundles, err := apih.SearchCheckBundles(nil, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(bundles)
-		expectedType := "*[]apiclient.CheckBundle"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("search, filter")
-	{
-		search := SearchQueryType("test")
-		filter := map[string][]string{"f__tags_has": {"cat:tag"}}
-		bundles, err := apih.SearchCheckBundles(&search, &filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(bundles)
-		expectedType := "*[]apiclient.CheckBundle"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.SearchCheckBundles(test.search, test.filter)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }

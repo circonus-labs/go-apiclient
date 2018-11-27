@@ -6,15 +6,12 @@ package apiclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
-
-	"github.com/circonus-labs/go-apiclient/config"
 )
 
 var (
@@ -65,9 +62,8 @@ func testCheckBundleMetricsServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
-func TestFetchCheckBundleMetrics(t *testing.T) {
+func checkBundleMetricsTestBootstrap(t *testing.T) (*API, *httptest.Server) {
 	server := testCheckBundleMetricsServer()
-	defer server.Close()
 
 	ac := &Config{
 		TokenKey: "abc123",
@@ -76,119 +72,82 @@ func TestFetchCheckBundleMetrics(t *testing.T) {
 	}
 	apih, err := NewAPI(ac)
 	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
 	}
 
-	t.Log("invalid CID [nil]")
-	{
-		expectedError := errors.New("Invalid check bundle metrics CID [none]")
-		_, err := apih.FetchCheckBundleMetrics(nil)
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	return apih, server
+}
+
+func TestFetchCheckBundleMetrics(t *testing.T) {
+	apih, server := checkBundleMetricsTestBootstrap(t)
+	defer server.Close()
+
+	tests := []struct {
+		id           string
+		cid          string
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"empty cid", "", "", true, "invalid check bundle metrics CID (none)"},
+		{"invalid cid", "/invalid", "", true, "invalid check bundle metrics CID (/check_bundle_metrics//invalid)"},
+		{"short cid", "1234", "*apiclient.CheckBundleMetrics", false, ""},
+		{"long cid", "/check_bundle_metrics/1234", "*apiclient.CheckBundleMetrics", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		expectedError := errors.New("Invalid check bundle metrics CID [none]")
-		_, err := apih.FetchCheckBundleMetrics(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid check bundle metrics CID [" + config.CheckBundleMetricsPrefix + "/" + cid + "]")
-		_, err := apih.FetchCheckBundleMetrics(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := "/check_bundle_metrics/1234"
-		metrics, err := apih.FetchCheckBundleMetrics(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(metrics)
-		expectedType := "*apiclient.CheckBundleMetrics"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-
-		if metrics.CID != testCheckBundleMetrics.CID {
-			t.Fatalf("CIDs do not match: %+v != %+v\n", metrics, testCheckBundleMetrics)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			alert, err := apih.FetchCheckBundleMetrics(CIDType(&test.cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(alert).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(alert).String())
+				}
+			}
+		})
 	}
 }
 
 func TestUpdateCheckBundleMetrics(t *testing.T) {
-	server := testCheckBundleMetricsServer()
+	apih, server := checkBundleMetricsTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid check bundle metrics config [nil]")
-		_, err := apih.UpdateCheckBundleMetrics(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id          string
+		cfg         *CheckBundleMetrics
+		shouldFail  bool
+		expectedErr string
+	}{
+		{"invalid (nil)", nil, true, "invalid check bundle metrics config (nil)"},
+		{"invalid (cid)", &CheckBundleMetrics{CID: "/invalid"}, true, "invalid check bundle metrics CID (/invalid)"},
+		{"valid", &testCheckBundleMetrics, false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid check bundle metrics CID [/invalid]")
-		x := &CheckBundleMetrics{CID: "/invalid"}
-		_, err := apih.UpdateCheckBundleMetrics(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		metrics, err := apih.UpdateCheckBundleMetrics(&testCheckBundleMetrics)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(metrics)
-		expectedType := "*apiclient.CheckBundleMetrics"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			_, err := apih.UpdateCheckBundleMetrics(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			}
+		})
 	}
 }

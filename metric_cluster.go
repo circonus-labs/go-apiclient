@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // MetricQuery object
@@ -42,7 +43,7 @@ func NewMetricCluster() *MetricCluster {
 // FetchMetricCluster retrieves metric cluster with passed cid.
 func (a *API) FetchMetricCluster(cid CIDType, extras string) (*MetricCluster, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid metric cluster CID [none]")
+		return nil, errors.New("invalid metric cluster CID (none)")
 	}
 
 	var clusterCID string
@@ -57,7 +58,7 @@ func (a *API) FetchMetricCluster(cid CIDType, extras string) (*MetricCluster, er
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid metric cluster CID [%s]", clusterCID)
+		return nil, errors.Errorf("invalid metric cluster CID (%s)", clusterCID)
 	}
 
 	reqURL := url.URL{
@@ -80,16 +81,16 @@ func (a *API) FetchMetricCluster(cid CIDType, extras string) (*MetricCluster, er
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching metric cluster")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch metric cluster, received JSON: %s", string(result))
+		a.Log.Printf("fetch metric cluster, received JSON: %s", string(result))
 	}
 
 	cluster := &MetricCluster{}
 	if err := json.Unmarshal(result, cluster); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing metric cluster")
 	}
 
 	return cluster, nil
@@ -117,12 +118,12 @@ func (a *API) FetchMetricClusters(extras string) (*[]MetricCluster, error) {
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching metric clusters")
 	}
 
 	var clusters []MetricCluster
 	if err := json.Unmarshal(result, &clusters); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing metric clusters")
 	}
 
 	return &clusters, nil
@@ -131,7 +132,7 @@ func (a *API) FetchMetricClusters(extras string) (*[]MetricCluster, error) {
 // UpdateMetricCluster updates passed metric cluster.
 func (a *API) UpdateMetricCluster(cfg *MetricCluster) (*MetricCluster, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid metric cluster config [nil]")
+		return nil, errors.New("invalid metric cluster config (nil)")
 	}
 
 	clusterCID := cfg.CID
@@ -141,7 +142,7 @@ func (a *API) UpdateMetricCluster(cfg *MetricCluster) (*MetricCluster, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid metric cluster CID [%s]", clusterCID)
+		return nil, errors.Errorf("invalid metric cluster CID (%s)", clusterCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -150,17 +151,17 @@ func (a *API) UpdateMetricCluster(cfg *MetricCluster) (*MetricCluster, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update metric cluster, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update metric cluster, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(clusterCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating metric cluster")
 	}
 
 	cluster := &MetricCluster{}
 	if err := json.Unmarshal(result, cluster); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing metric cluster")
 	}
 
 	return cluster, nil
@@ -169,7 +170,7 @@ func (a *API) UpdateMetricCluster(cfg *MetricCluster) (*MetricCluster, error) {
 // CreateMetricCluster creates a new metric cluster.
 func (a *API) CreateMetricCluster(cfg *MetricCluster) (*MetricCluster, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid metric cluster config [nil]")
+		return nil, errors.New("invalid metric cluster config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -178,17 +179,17 @@ func (a *API) CreateMetricCluster(cfg *MetricCluster) (*MetricCluster, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] create metric cluster, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("create metric cluster, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Post(config.MetricClusterPrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating metric cluster")
 	}
 
 	cluster := &MetricCluster{}
 	if err := json.Unmarshal(result, cluster); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing metric cluster")
 	}
 
 	return cluster, nil
@@ -197,7 +198,7 @@ func (a *API) CreateMetricCluster(cfg *MetricCluster) (*MetricCluster, error) {
 // DeleteMetricCluster deletes passed metric cluster.
 func (a *API) DeleteMetricCluster(cfg *MetricCluster) (bool, error) {
 	if cfg == nil {
-		return false, fmt.Errorf("Invalid metric cluster config [nil]")
+		return false, errors.New("invalid metric cluster config (nil)")
 	}
 	return a.DeleteMetricClusterByCID(CIDType(&cfg.CID))
 }
@@ -205,22 +206,27 @@ func (a *API) DeleteMetricCluster(cfg *MetricCluster) (bool, error) {
 // DeleteMetricClusterByCID deletes metric cluster with passed cid.
 func (a *API) DeleteMetricClusterByCID(cid CIDType) (bool, error) {
 	if cid == nil || *cid == "" {
-		return false, fmt.Errorf("Invalid metric cluster CID [none]")
+		return false, errors.New("invalid metric cluster CID (none)")
 	}
 
-	clusterCID := *cid
+	var clusterCID string
+	if !strings.HasPrefix(*cid, config.MetricClusterPrefix) {
+		clusterCID = fmt.Sprintf("%s/%s", config.MetricClusterPrefix, *cid)
+	} else {
+		clusterCID = *cid
+	}
 
 	matched, err := regexp.MatchString(config.MetricClusterCIDRegex, clusterCID)
 	if err != nil {
 		return false, err
 	}
 	if !matched {
-		return false, fmt.Errorf("Invalid metric cluster CID [%s]", clusterCID)
+		return false, errors.Errorf("invalid metric cluster CID (%s)", clusterCID)
 	}
 
 	_, err = a.Delete(clusterCID)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "deleting metric cluster")
 	}
 
 	return true, nil
@@ -255,12 +261,12 @@ func (a *API) SearchMetricClusters(searchCriteria *SearchQueryType, filterCriter
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching metric clusters")
 	}
 
 	var clusters []MetricCluster
 	if err := json.Unmarshal(result, &clusters); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing metric clusters")
 	}
 
 	return &clusters, nil

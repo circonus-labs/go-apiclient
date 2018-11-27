@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // AccountLimit defines a usage limit imposed on account
@@ -74,21 +75,21 @@ func (a *API) FetchAccount(cid CIDType) (*Account, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid account CID [%s]", accountCID)
+		return nil, errors.Errorf("invalid account CID (%s)", accountCID)
 	}
 
 	result, err := a.Get(accountCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching account")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch account, received JSON: %s", string(result))
+		a.Log.Printf("fetch account, received JSON: %s", string(result))
 	}
 
 	account := new(Account)
 	if err := json.Unmarshal(result, account); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing account")
 	}
 
 	return account, nil
@@ -98,12 +99,12 @@ func (a *API) FetchAccount(cid CIDType) (*Account, error) {
 func (a *API) FetchAccounts() (*[]Account, error) {
 	result, err := a.Get(config.AccountPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching accounts")
 	}
 
 	var accounts []Account
 	if err := json.Unmarshal(result, &accounts); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing accounts")
 	}
 
 	return &accounts, nil
@@ -112,7 +113,7 @@ func (a *API) FetchAccounts() (*[]Account, error) {
 // UpdateAccount updates passed account.
 func (a *API) UpdateAccount(cfg *Account) (*Account, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid account config [nil]")
+		return nil, errors.Errorf("invalid account config (nil)")
 	}
 
 	accountCID := cfg.CID
@@ -122,7 +123,7 @@ func (a *API) UpdateAccount(cfg *Account) (*Account, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid account CID [%s]", accountCID)
+		return nil, errors.Errorf("invalid account CID (%s)", accountCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -131,17 +132,17 @@ func (a *API) UpdateAccount(cfg *Account) (*Account, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] account update, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("account update, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(accountCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating account")
 	}
 
 	account := &Account{}
 	if err := json.Unmarshal(result, account); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing account")
 	}
 
 	return account, nil
@@ -172,7 +173,7 @@ func (a *API) SearchAccounts(filterCriteria *SearchFilterType) (*[]Account, erro
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching accounts")
 	}
 
 	var accounts []Account

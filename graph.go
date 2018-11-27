@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // GraphAccessKey defines an access key for a graph
@@ -167,7 +168,7 @@ func NewGraph() *Graph {
 // FetchGraph retrieves graph with passed cid.
 func (a *API) FetchGraph(cid CIDType) (*Graph, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid graph CID [none]")
+		return nil, errors.New("invalid graph CID (none)")
 	}
 
 	var graphCID string
@@ -182,20 +183,20 @@ func (a *API) FetchGraph(cid CIDType) (*Graph, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid graph CID [%s]", graphCID)
+		return nil, errors.Errorf("invalid graph CID (%s)", graphCID)
 	}
 
 	result, err := a.Get(graphCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching graph")
 	}
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch graph, received JSON: %s", string(result))
+		a.Log.Printf("fetch graph, received JSON: %s", string(result))
 	}
 
 	graph := new(Graph)
 	if err := json.Unmarshal(result, graph); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing graph")
 	}
 
 	return graph, nil
@@ -205,12 +206,12 @@ func (a *API) FetchGraph(cid CIDType) (*Graph, error) {
 func (a *API) FetchGraphs() (*[]Graph, error) {
 	result, err := a.Get(config.GraphPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching graphs")
 	}
 
 	var graphs []Graph
 	if err := json.Unmarshal(result, &graphs); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing graphs")
 	}
 
 	return &graphs, nil
@@ -219,7 +220,7 @@ func (a *API) FetchGraphs() (*[]Graph, error) {
 // UpdateGraph updates passed graph.
 func (a *API) UpdateGraph(cfg *Graph) (*Graph, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid graph config [nil]")
+		return nil, errors.New("invalid graph config (nil)")
 	}
 
 	graphCID := cfg.CID
@@ -229,7 +230,7 @@ func (a *API) UpdateGraph(cfg *Graph) (*Graph, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid graph CID [%s]", graphCID)
+		return nil, errors.Errorf("invalid graph CID (%s)", graphCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -238,17 +239,17 @@ func (a *API) UpdateGraph(cfg *Graph) (*Graph, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update graph, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update graph, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(graphCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating graph")
 	}
 
 	graph := &Graph{}
 	if err := json.Unmarshal(result, graph); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing graph")
 	}
 
 	return graph, nil
@@ -257,7 +258,7 @@ func (a *API) UpdateGraph(cfg *Graph) (*Graph, error) {
 // CreateGraph creates a new graph.
 func (a *API) CreateGraph(cfg *Graph) (*Graph, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid graph config [nil]")
+		return nil, errors.New("invalid graph config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -266,17 +267,17 @@ func (a *API) CreateGraph(cfg *Graph) (*Graph, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update graph, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update graph, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Post(config.GraphPrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating graph")
 	}
 
 	graph := &Graph{}
 	if err := json.Unmarshal(result, graph); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing graph")
 	}
 
 	return graph, nil
@@ -285,7 +286,7 @@ func (a *API) CreateGraph(cfg *Graph) (*Graph, error) {
 // DeleteGraph deletes passed graph.
 func (a *API) DeleteGraph(cfg *Graph) (bool, error) {
 	if cfg == nil {
-		return false, fmt.Errorf("Invalid graph config [nil]")
+		return false, errors.New("invalid graph config (nil)")
 	}
 	return a.DeleteGraphByCID(CIDType(&cfg.CID))
 }
@@ -293,22 +294,27 @@ func (a *API) DeleteGraph(cfg *Graph) (bool, error) {
 // DeleteGraphByCID deletes graph with passed cid.
 func (a *API) DeleteGraphByCID(cid CIDType) (bool, error) {
 	if cid == nil || *cid == "" {
-		return false, fmt.Errorf("Invalid graph CID [none]")
+		return false, errors.New("invalid graph CID (none)")
 	}
 
-	graphCID := *cid
+	var graphCID string
+	if !strings.HasPrefix(*cid, config.GraphPrefix) {
+		graphCID = fmt.Sprintf("%s/%s", config.GraphPrefix, *cid)
+	} else {
+		graphCID = *cid
+	}
 
 	matched, err := regexp.MatchString(config.GraphCIDRegex, graphCID)
 	if err != nil {
 		return false, err
 	}
 	if !matched {
-		return false, fmt.Errorf("Invalid graph CID [%s]", graphCID)
+		return false, errors.Errorf("invalid graph CID (%s)", graphCID)
 	}
 
 	_, err = a.Delete(graphCID)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "deleting graph")
 	}
 
 	return true, nil
@@ -343,12 +349,12 @@ func (a *API) SearchGraphs(searchCriteria *SearchQueryType, filterCriteria *Sear
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching graphs")
 	}
 
 	var graphs []Graph
 	if err := json.Unmarshal(result, &graphs); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing graphs")
 	}
 
 	return &graphs, nil

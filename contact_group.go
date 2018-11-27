@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // ContactGroupAlertFormats define alert formats
@@ -80,7 +81,7 @@ func NewContactGroup() *ContactGroup {
 // FetchContactGroup retrieves contact group with passed cid.
 func (a *API) FetchContactGroup(cid CIDType) (*ContactGroup, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid contact group CID [none]")
+		return nil, errors.New("invalid contact group CID (none)")
 	}
 
 	var groupCID string
@@ -95,21 +96,21 @@ func (a *API) FetchContactGroup(cid CIDType) (*ContactGroup, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid contact group CID [%s]", groupCID)
+		return nil, errors.Errorf("invalid contact group CID (%s)", groupCID)
 	}
 
 	result, err := a.Get(groupCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching contact group")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch contact group, received JSON: %s", string(result))
+		a.Log.Printf("fetch contact group, received JSON: %s", string(result))
 	}
 
 	group := new(ContactGroup)
 	if err := json.Unmarshal(result, group); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing contact group")
 	}
 
 	return group, nil
@@ -119,12 +120,12 @@ func (a *API) FetchContactGroup(cid CIDType) (*ContactGroup, error) {
 func (a *API) FetchContactGroups() (*[]ContactGroup, error) {
 	result, err := a.Get(config.ContactGroupPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching contact groups")
 	}
 
 	var groups []ContactGroup
 	if err := json.Unmarshal(result, &groups); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing contact groups")
 	}
 
 	return &groups, nil
@@ -133,7 +134,7 @@ func (a *API) FetchContactGroups() (*[]ContactGroup, error) {
 // UpdateContactGroup updates passed contact group.
 func (a *API) UpdateContactGroup(cfg *ContactGroup) (*ContactGroup, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid contact group config [nil]")
+		return nil, errors.New("invalid contact group config (nil)")
 	}
 
 	groupCID := cfg.CID
@@ -143,7 +144,7 @@ func (a *API) UpdateContactGroup(cfg *ContactGroup) (*ContactGroup, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid contact group CID [%s]", groupCID)
+		return nil, errors.Errorf("invalid contact group CID (%s)", groupCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -152,17 +153,17 @@ func (a *API) UpdateContactGroup(cfg *ContactGroup) (*ContactGroup, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update contact group, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update contact group, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(groupCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating contact group")
 	}
 
 	group := &ContactGroup{}
 	if err := json.Unmarshal(result, group); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing contact group")
 	}
 
 	return group, nil
@@ -171,7 +172,7 @@ func (a *API) UpdateContactGroup(cfg *ContactGroup) (*ContactGroup, error) {
 // CreateContactGroup creates a new contact group.
 func (a *API) CreateContactGroup(cfg *ContactGroup) (*ContactGroup, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid contact group config [nil]")
+		return nil, errors.New("invalid contact group config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -180,17 +181,17 @@ func (a *API) CreateContactGroup(cfg *ContactGroup) (*ContactGroup, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] create contact group, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("create contact group, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Post(config.ContactGroupPrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating contact group")
 	}
 
 	group := &ContactGroup{}
 	if err := json.Unmarshal(result, group); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing contact group")
 	}
 
 	return group, nil
@@ -199,7 +200,7 @@ func (a *API) CreateContactGroup(cfg *ContactGroup) (*ContactGroup, error) {
 // DeleteContactGroup deletes passed contact group.
 func (a *API) DeleteContactGroup(cfg *ContactGroup) (bool, error) {
 	if cfg == nil {
-		return false, fmt.Errorf("Invalid contact group config [nil]")
+		return false, errors.New("invalid contact group config (nil)")
 	}
 	return a.DeleteContactGroupByCID(CIDType(&cfg.CID))
 }
@@ -207,22 +208,27 @@ func (a *API) DeleteContactGroup(cfg *ContactGroup) (bool, error) {
 // DeleteContactGroupByCID deletes contact group with passed cid.
 func (a *API) DeleteContactGroupByCID(cid CIDType) (bool, error) {
 	if cid == nil || *cid == "" {
-		return false, fmt.Errorf("Invalid contact group CID [none]")
+		return false, errors.New("invalid contact group CID (none)")
 	}
 
-	groupCID := *cid
+	var groupCID string
+	if !strings.HasPrefix(*cid, config.ContactGroupPrefix) {
+		groupCID = fmt.Sprintf("%s/%s", config.ContactGroupPrefix, *cid)
+	} else {
+		groupCID = *cid
+	}
 
 	matched, err := regexp.MatchString(config.ContactGroupCIDRegex, groupCID)
 	if err != nil {
 		return false, err
 	}
 	if !matched {
-		return false, fmt.Errorf("Invalid contact group CID [%s]", groupCID)
+		return false, errors.Errorf("invalid contact group CID (%s)", groupCID)
 	}
 
 	_, err = a.Delete(groupCID)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "deleting contact group")
 	}
 
 	return true, nil
@@ -257,12 +263,12 @@ func (a *API) SearchContactGroups(searchCriteria *SearchQueryType, filterCriteri
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching contact groups")
 	}
 
 	var groups []ContactGroup
 	if err := json.Unmarshal(result, &groups); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing contact groups")
 	}
 
 	return &groups, nil

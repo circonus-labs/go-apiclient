@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // WorksheetGraph defines a worksheet cid to be include in the worksheet
@@ -51,7 +52,7 @@ func NewWorksheet() *Worksheet {
 // FetchWorksheet retrieves worksheet with passed cid.
 func (a *API) FetchWorksheet(cid CIDType) (*Worksheet, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid worksheet CID [none]")
+		return nil, errors.New("invalid worksheet CID (none)")
 	}
 
 	var worksheetCID string
@@ -66,21 +67,21 @@ func (a *API) FetchWorksheet(cid CIDType) (*Worksheet, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid worksheet CID [%s]", worksheetCID)
+		return nil, errors.Errorf("invalid worksheet CID (%s)", worksheetCID)
 	}
 
 	result, err := a.Get(worksheetCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching worksheet")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch worksheet, received JSON: %s", string(result))
+		a.Log.Printf("fetch worksheet, received JSON: %s", string(result))
 	}
 
 	worksheet := new(Worksheet)
 	if err := json.Unmarshal(result, worksheet); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing worksheet")
 	}
 
 	return worksheet, nil
@@ -90,12 +91,12 @@ func (a *API) FetchWorksheet(cid CIDType) (*Worksheet, error) {
 func (a *API) FetchWorksheets() (*[]Worksheet, error) {
 	result, err := a.Get(config.WorksheetPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching worksheets")
 	}
 
 	var worksheets []Worksheet
 	if err := json.Unmarshal(result, &worksheets); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing worksheets")
 	}
 
 	return &worksheets, nil
@@ -104,7 +105,7 @@ func (a *API) FetchWorksheets() (*[]Worksheet, error) {
 // UpdateWorksheet updates passed worksheet.
 func (a *API) UpdateWorksheet(cfg *Worksheet) (*Worksheet, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid worksheet config [nil]")
+		return nil, errors.Errorf("invalid worksheet config (nil)")
 	}
 
 	worksheetCID := cfg.CID
@@ -114,7 +115,7 @@ func (a *API) UpdateWorksheet(cfg *Worksheet) (*Worksheet, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid worksheet CID [%s]", worksheetCID)
+		return nil, errors.Errorf("invalid worksheet CID (%s)", worksheetCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -123,17 +124,17 @@ func (a *API) UpdateWorksheet(cfg *Worksheet) (*Worksheet, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update worksheet, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update worksheet, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(worksheetCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating worksheet")
 	}
 
 	worksheet := &Worksheet{}
 	if err := json.Unmarshal(result, worksheet); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing worksheet")
 	}
 
 	return worksheet, nil
@@ -142,7 +143,7 @@ func (a *API) UpdateWorksheet(cfg *Worksheet) (*Worksheet, error) {
 // CreateWorksheet creates a new worksheet.
 func (a *API) CreateWorksheet(cfg *Worksheet) (*Worksheet, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid worksheet config [nil]")
+		return nil, errors.New("invalid worksheet config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -151,17 +152,17 @@ func (a *API) CreateWorksheet(cfg *Worksheet) (*Worksheet, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] create annotation, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("create annotation, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Post(config.WorksheetPrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating worksheet")
 	}
 
 	worksheet := &Worksheet{}
 	if err := json.Unmarshal(result, worksheet); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing worksheet")
 	}
 
 	return worksheet, nil
@@ -170,7 +171,7 @@ func (a *API) CreateWorksheet(cfg *Worksheet) (*Worksheet, error) {
 // DeleteWorksheet deletes passed worksheet.
 func (a *API) DeleteWorksheet(cfg *Worksheet) (bool, error) {
 	if cfg == nil {
-		return false, fmt.Errorf("Invalid worksheet config [nil]")
+		return false, errors.New("invalid worksheet config (nil)")
 	}
 	return a.DeleteWorksheetByCID(CIDType(&cfg.CID))
 }
@@ -178,22 +179,27 @@ func (a *API) DeleteWorksheet(cfg *Worksheet) (bool, error) {
 // DeleteWorksheetByCID deletes worksheet with passed cid.
 func (a *API) DeleteWorksheetByCID(cid CIDType) (bool, error) {
 	if cid == nil || *cid == "" {
-		return false, fmt.Errorf("Invalid worksheet CID [none]")
+		return false, errors.New("invalid worksheet CID (none)")
 	}
 
-	worksheetCID := *cid
+	var worksheetCID string
+	if !strings.HasPrefix(*cid, config.WorksheetPrefix) {
+		worksheetCID = fmt.Sprintf("%s/%s", config.WorksheetPrefix, *cid)
+	} else {
+		worksheetCID = *cid
+	}
 
 	matched, err := regexp.MatchString(config.WorksheetCIDRegex, worksheetCID)
 	if err != nil {
 		return false, err
 	}
 	if !matched {
-		return false, fmt.Errorf("Invalid worksheet CID [%s]", worksheetCID)
+		return false, errors.Errorf("invalid worksheet CID (%s)", worksheetCID)
 	}
 
 	_, err = a.Delete(worksheetCID)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "deleting worksheet")
 	}
 
 	return true, nil
@@ -228,12 +234,12 @@ func (a *API) SearchWorksheets(searchCriteria *SearchQueryType, filterCriteria *
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching worksheets")
 	}
 
 	var worksheets []Worksheet
 	if err := json.Unmarshal(result, &worksheets); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing worksheets")
 	}
 
 	return &worksheets, nil

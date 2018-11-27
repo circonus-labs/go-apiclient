@@ -12,7 +12,6 @@ import (
 	crand "crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -28,6 +27,7 @@ import (
 	"time"
 
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -47,6 +47,12 @@ const (
 	maxRetryWait  = 15 * time.Second
 	maxRetries    = 4 // equating to 1 + maxRetries total attempts
 )
+
+// Logger facilitates use of any logger supporting the required methods
+// rather than just standard log package log.Logger
+type Logger interface {
+	Printf(string, ...interface{})
+}
 
 // TokenKeyType - Circonus API Token key
 type TokenKeyType string
@@ -94,7 +100,7 @@ type Config struct {
 	// TLSConfig defines a custom tls configuration to use when communicating with the API
 	TLSConfig *tls.Config
 
-	Log   *log.Logger
+	Log   Logger
 	Debug bool
 }
 
@@ -107,7 +113,7 @@ type API struct {
 	caCert                  *x509.CertPool
 	tlsConfig               *tls.Config
 	Debug                   bool
-	Log                     *log.Logger
+	Log                     Logger
 	useExponentialBackoff   bool
 	useExponentialBackoffmu sync.Mutex
 }
@@ -126,12 +132,12 @@ func NewAPI(ac *Config) (*API, error) {
 func New(ac *Config) (*API, error) {
 
 	if ac == nil {
-		return nil, errors.New("Invalid API configuration (nil)")
+		return nil, errors.New("invalid Circonus API configuration (nil)")
 	}
 
 	key := TokenKeyType(ac.TokenKey)
 	if key == "" {
-		return nil, errors.New("API Token is required")
+		return nil, errors.New("Circonus API Token is required")
 	}
 
 	app := TokenAppType(ac.TokenApp)
@@ -155,7 +161,7 @@ func New(ac *Config) (*API, error) {
 	}
 	apiURL, err := url.Parse(au)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing Circonus API URL")
 	}
 
 	a := &API{
@@ -256,7 +262,7 @@ func (a *API) apiRequest(reqMethod string, reqPath string, data []byte) ([]byte,
 				wait = backoff(backoffs[attempts])
 			}
 			attempts++
-			a.Log.Printf("[WARN] API call failed %s, retrying in %d seconds.\n", err.Error(), uint(wait))
+			a.Log.Printf("Circonus API call failed %s, retrying in %d seconds.\n", err.Error(), uint(wait))
 			time.Sleep(time.Duration(wait) * time.Second)
 		}
 	}
@@ -269,7 +275,7 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 	reqURL := a.apiURL.String()
 
 	if reqPath == "" {
-		return nil, errors.New("Invalid URL path")
+		return nil, errors.New("invalid Circonus API URL path (empty)")
 	}
 	if reqPath[:1] != "/" {
 		reqURL += "/"
@@ -284,12 +290,12 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 	var lastHTTPError error
 	retryPolicy := func(ctx context.Context, resp *http.Response, err error) (bool, error) {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return false, ctxErr
+			return false, errors.Wrap(ctxErr, "Circonus API call")
 		}
 
 		if err != nil {
 			lastHTTPError = err
-			return true, err
+			return true, errors.Wrap(err, "Circonus API call")
 		}
 		// Check the response code. We retry on 500-range responses to allow
 		// the server time to recover, as 500's are typically not permanent
@@ -301,9 +307,9 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 			resp.StatusCode == 429 { // rate limit
 			body, readErr := ioutil.ReadAll(resp.Body)
 			if readErr != nil {
-				lastHTTPError = fmt.Errorf("- response: %d %s", resp.StatusCode, readErr.Error())
+				lastHTTPError = errors.Errorf("- response: %d %s", resp.StatusCode, readErr.Error())
 			} else {
-				lastHTTPError = fmt.Errorf("- response: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+				lastHTTPError = errors.Errorf("- response: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
 			}
 			return true, nil
 		}
@@ -314,7 +320,7 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 
 	req, err := retryablehttp.NewRequest(reqMethod, reqURL, dataReader)
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] creating API request: %s %+v", reqURL, err)
+		return nil, errors.Errorf("creating Circonus API request: %s %+v", reqURL, err)
 	}
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("X-Circonus-Auth-Token", string(a.key))
@@ -374,7 +380,7 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 
 	// retryablehttp only groks log or no log
 	if a.Debug {
-		client.Logger = a.Log
+		client.Logger = a.Log.(*log.Logger)
 	} else {
 		client.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
 	}
@@ -386,22 +392,22 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 		if lastHTTPError != nil {
 			return nil, lastHTTPError
 		}
-		return nil, fmt.Errorf("[ERROR] %s: %+v", reqURL, err)
+		return nil, errors.Errorf("Circonus API call - %s: %+v", reqURL, err)
 	}
 
 	defer resp.Body.Close() // nolint: errcheck
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] reading response %+v", err)
+		return nil, errors.Wrap(err, "reading Circonus API response")
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		msg := fmt.Sprintf("API response code %d: %s", resp.StatusCode, string(body))
 		if a.Debug {
-			a.Log.Printf("[DEBUG] %s\n", msg)
+			a.Log.Printf("%s\n", msg)
 		}
 
-		return nil, fmt.Errorf("[ERROR] %s", msg)
+		return nil, errors.New(msg)
 	}
 
 	return body, nil

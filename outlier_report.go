@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // OutlierReport defines a outlier report. See https://login.circonus.com/resources/api/calls/report for more information.
@@ -38,7 +39,7 @@ func NewOutlierReport() *OutlierReport {
 // FetchOutlierReport retrieves outlier report with passed cid.
 func (a *API) FetchOutlierReport(cid CIDType) (*OutlierReport, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid outlier report CID [none]")
+		return nil, errors.New("invalid outlier report CID (none)")
 	}
 
 	var reportCID string
@@ -53,21 +54,21 @@ func (a *API) FetchOutlierReport(cid CIDType) (*OutlierReport, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid outlier report CID [%s]", reportCID)
+		return nil, errors.Errorf("invalid outlier report CID (%s)", reportCID)
 	}
 
 	result, err := a.Get(reportCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching outlier report")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch outlier report, received JSON: %s", string(result))
+		a.Log.Printf("fetch outlier report, received JSON: %s", string(result))
 	}
 
 	report := &OutlierReport{}
 	if err := json.Unmarshal(result, report); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing outlier report")
 	}
 
 	return report, nil
@@ -77,12 +78,12 @@ func (a *API) FetchOutlierReport(cid CIDType) (*OutlierReport, error) {
 func (a *API) FetchOutlierReports() (*[]OutlierReport, error) {
 	result, err := a.Get(config.OutlierReportPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching outlier reports")
 	}
 
 	var reports []OutlierReport
 	if err := json.Unmarshal(result, &reports); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing outlier reports")
 	}
 
 	return &reports, nil
@@ -91,7 +92,7 @@ func (a *API) FetchOutlierReports() (*[]OutlierReport, error) {
 // UpdateOutlierReport updates passed outlier report.
 func (a *API) UpdateOutlierReport(cfg *OutlierReport) (*OutlierReport, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid outlier report config [nil]")
+		return nil, errors.New("invalid outlier report config (nil)")
 	}
 
 	reportCID := cfg.CID
@@ -101,7 +102,7 @@ func (a *API) UpdateOutlierReport(cfg *OutlierReport) (*OutlierReport, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid outlier report CID [%s]", reportCID)
+		return nil, errors.Errorf("invalid outlier report CID (%s)", reportCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -110,17 +111,17 @@ func (a *API) UpdateOutlierReport(cfg *OutlierReport) (*OutlierReport, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update outlier report, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update outlier report, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(reportCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating outlier report")
 	}
 
 	report := &OutlierReport{}
 	if err := json.Unmarshal(result, report); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing outlier report")
 	}
 
 	return report, nil
@@ -129,7 +130,7 @@ func (a *API) UpdateOutlierReport(cfg *OutlierReport) (*OutlierReport, error) {
 // CreateOutlierReport creates a new outlier report.
 func (a *API) CreateOutlierReport(cfg *OutlierReport) (*OutlierReport, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid outlier report config [nil]")
+		return nil, errors.New("invalid outlier report config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -138,17 +139,17 @@ func (a *API) CreateOutlierReport(cfg *OutlierReport) (*OutlierReport, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] create outlier report, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("create outlier report, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Post(config.OutlierReportPrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating outlier report")
 	}
 
 	report := &OutlierReport{}
 	if err := json.Unmarshal(result, report); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing outlier report")
 	}
 
 	return report, nil
@@ -157,7 +158,7 @@ func (a *API) CreateOutlierReport(cfg *OutlierReport) (*OutlierReport, error) {
 // DeleteOutlierReport deletes passed outlier report.
 func (a *API) DeleteOutlierReport(cfg *OutlierReport) (bool, error) {
 	if cfg == nil {
-		return false, fmt.Errorf("Invalid outlier report config [nil]")
+		return false, errors.New("invalid outlier report config (nil)")
 	}
 	return a.DeleteOutlierReportByCID(CIDType(&cfg.CID))
 }
@@ -165,22 +166,27 @@ func (a *API) DeleteOutlierReport(cfg *OutlierReport) (bool, error) {
 // DeleteOutlierReportByCID deletes outlier report with passed cid.
 func (a *API) DeleteOutlierReportByCID(cid CIDType) (bool, error) {
 	if cid == nil || *cid == "" {
-		return false, fmt.Errorf("Invalid outlier report CID [none]")
+		return false, errors.New("invalid outlier report CID (none)")
 	}
 
-	reportCID := *cid
+	var reportCID string
+	if !strings.HasPrefix(*cid, config.OutlierReportPrefix) {
+		reportCID = fmt.Sprintf("%s/%s", config.OutlierReportPrefix, *cid)
+	} else {
+		reportCID = *cid
+	}
 
 	matched, err := regexp.MatchString(config.OutlierReportCIDRegex, reportCID)
 	if err != nil {
 		return false, err
 	}
 	if !matched {
-		return false, fmt.Errorf("Invalid outlier report CID [%s]", reportCID)
+		return false, errors.Errorf("invalid outlier report CID (%s)", reportCID)
 	}
 
 	_, err = a.Delete(reportCID)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "deleting outlier report")
 	}
 
 	return true, nil
@@ -215,12 +221,12 @@ func (a *API) SearchOutlierReports(searchCriteria *SearchQueryType, filterCriter
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching outlier reports")
 	}
 
 	var reports []OutlierReport
 	if err := json.Unmarshal(result, &reports); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing outlier reports")
 	}
 
 	return &reports, nil

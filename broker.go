@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // BrokerDetail defines instance attributes
@@ -45,7 +46,7 @@ type Broker struct {
 // FetchBroker retrieves broker with passed cid.
 func (a *API) FetchBroker(cid CIDType) (*Broker, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid broker CID [none]")
+		return nil, errors.Errorf("invalid broker CID (none)")
 	}
 
 	var brokerCID string
@@ -60,21 +61,21 @@ func (a *API) FetchBroker(cid CIDType) (*Broker, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid broker CID [%s]", brokerCID)
+		return nil, errors.Errorf("invalid broker CID (%s)", brokerCID)
 	}
 
 	result, err := a.Get(brokerCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching broker")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch broker, received JSON: %s", string(result))
+		a.Log.Printf("fetch broker, received JSON: %s", string(result))
 	}
 
 	response := new(Broker)
 	if err := json.Unmarshal(result, &response); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing broker")
 	}
 
 	return response, nil
@@ -85,12 +86,12 @@ func (a *API) FetchBroker(cid CIDType) (*Broker, error) {
 func (a *API) FetchBrokers() (*[]Broker, error) {
 	result, err := a.Get(config.BrokerPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching brokers")
 	}
 
 	var response []Broker
 	if err := json.Unmarshal(result, &response); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing brokers")
 	}
 
 	return &response, nil
@@ -125,12 +126,12 @@ func (a *API) SearchBrokers(searchCriteria *SearchQueryType, filterCriteria *Sea
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching brokers")
 	}
 
 	var brokers []Broker
 	if err := json.Unmarshal(result, &brokers); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing brokers")
 	}
 
 	return &brokers, nil

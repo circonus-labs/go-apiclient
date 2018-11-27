@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // RuleSetGroupFormula defines a formula for raising alerts
@@ -48,7 +49,7 @@ func NewRuleSetGroup() *RuleSetGroup {
 // FetchRuleSetGroup retrieves rule set group with passed cid.
 func (a *API) FetchRuleSetGroup(cid CIDType) (*RuleSetGroup, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid rule set group CID [none]")
+		return nil, errors.New("invalid rule set group CID (none)")
 	}
 
 	var groupCID string
@@ -63,21 +64,21 @@ func (a *API) FetchRuleSetGroup(cid CIDType) (*RuleSetGroup, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid rule set group CID [%s]", groupCID)
+		return nil, errors.Errorf("invalid rule set group CID (%s)", groupCID)
 	}
 
 	result, err := a.Get(groupCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching rule set group")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch rule set group, received JSON: %s", string(result))
+		a.Log.Printf("fetch rule set group, received JSON: %s", string(result))
 	}
 
 	rulesetGroup := &RuleSetGroup{}
 	if err := json.Unmarshal(result, rulesetGroup); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing rule set group")
 	}
 
 	return rulesetGroup, nil
@@ -87,12 +88,12 @@ func (a *API) FetchRuleSetGroup(cid CIDType) (*RuleSetGroup, error) {
 func (a *API) FetchRuleSetGroups() (*[]RuleSetGroup, error) {
 	result, err := a.Get(config.RuleSetGroupPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching rule set groups")
 	}
 
 	var rulesetGroups []RuleSetGroup
 	if err := json.Unmarshal(result, &rulesetGroups); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing rule set groups")
 	}
 
 	return &rulesetGroups, nil
@@ -101,7 +102,7 @@ func (a *API) FetchRuleSetGroups() (*[]RuleSetGroup, error) {
 // UpdateRuleSetGroup updates passed rule set group.
 func (a *API) UpdateRuleSetGroup(cfg *RuleSetGroup) (*RuleSetGroup, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid rule set group config [nil]")
+		return nil, errors.New("invalid rule set group config (nil)")
 	}
 
 	groupCID := cfg.CID
@@ -111,26 +112,26 @@ func (a *API) UpdateRuleSetGroup(cfg *RuleSetGroup) (*RuleSetGroup, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid rule set group CID [%s]", groupCID)
+		return nil, errors.Errorf("invalid rule set group CID (%s)", groupCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating rule set group")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update rule set group, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update rule set group, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(groupCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating rule set group")
 	}
 
 	groups := &RuleSetGroup{}
 	if err := json.Unmarshal(result, groups); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing rule set group")
 	}
 
 	return groups, nil
@@ -139,7 +140,7 @@ func (a *API) UpdateRuleSetGroup(cfg *RuleSetGroup) (*RuleSetGroup, error) {
 // CreateRuleSetGroup creates a new rule set group.
 func (a *API) CreateRuleSetGroup(cfg *RuleSetGroup) (*RuleSetGroup, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid rule set group config [nil]")
+		return nil, errors.New("invalid rule set group config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -148,17 +149,17 @@ func (a *API) CreateRuleSetGroup(cfg *RuleSetGroup) (*RuleSetGroup, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] create rule set group, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("create rule set group, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Post(config.RuleSetGroupPrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating rule set group")
 	}
 
 	group := &RuleSetGroup{}
 	if err := json.Unmarshal(result, group); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing rule set group")
 	}
 
 	return group, nil
@@ -167,7 +168,7 @@ func (a *API) CreateRuleSetGroup(cfg *RuleSetGroup) (*RuleSetGroup, error) {
 // DeleteRuleSetGroup deletes passed rule set group.
 func (a *API) DeleteRuleSetGroup(cfg *RuleSetGroup) (bool, error) {
 	if cfg == nil {
-		return false, fmt.Errorf("Invalid rule set group config [nil]")
+		return false, errors.New("invalid rule set group config (nil)")
 	}
 	return a.DeleteRuleSetGroupByCID(CIDType(&cfg.CID))
 }
@@ -175,22 +176,27 @@ func (a *API) DeleteRuleSetGroup(cfg *RuleSetGroup) (bool, error) {
 // DeleteRuleSetGroupByCID deletes rule set group with passed cid.
 func (a *API) DeleteRuleSetGroupByCID(cid CIDType) (bool, error) {
 	if cid == nil || *cid == "" {
-		return false, fmt.Errorf("Invalid rule set group CID [none]")
+		return false, errors.New("invalid rule set group CID (none)")
 	}
 
-	groupCID := *cid
+	var groupCID string
+	if !strings.HasPrefix(*cid, config.RuleSetGroupPrefix) {
+		groupCID = fmt.Sprintf("%s/%s", config.RuleSetGroupPrefix, *cid)
+	} else {
+		groupCID = *cid
+	}
 
 	matched, err := regexp.MatchString(config.RuleSetGroupCIDRegex, groupCID)
 	if err != nil {
 		return false, err
 	}
 	if !matched {
-		return false, fmt.Errorf("Invalid rule set group CID [%s]", groupCID)
+		return false, errors.Errorf("invalid rule set group CID (%s)", groupCID)
 	}
 
 	_, err = a.Delete(groupCID)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "deleting rule set group")
 	}
 
 	return true, nil
@@ -225,12 +231,12 @@ func (a *API) SearchRuleSetGroups(searchCriteria *SearchQueryType, filterCriteri
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching rule set groups")
 	}
 
 	var groups []RuleSetGroup
 	if err := json.Unmarshal(result, &groups); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing rule set groups")
 	}
 
 	return &groups, nil

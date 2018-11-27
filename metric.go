@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // Metric defines a metric. See https://login.circonus.com/resources/api/calls/metric for more information.
@@ -39,7 +40,7 @@ type Metric struct {
 // FetchMetric retrieves metric with passed cid.
 func (a *API) FetchMetric(cid CIDType) (*Metric, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid metric CID [none]")
+		return nil, errors.New("invalid metric CID (none)")
 	}
 
 	var metricCID string
@@ -54,21 +55,21 @@ func (a *API) FetchMetric(cid CIDType) (*Metric, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid metric CID [%s]", metricCID)
+		return nil, errors.Errorf("invalid metric CID (%s)", metricCID)
 	}
 
 	result, err := a.Get(metricCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching metric")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch metric, received JSON: %s", string(result))
+		a.Log.Printf("fetch metric, received JSON: %s", string(result))
 	}
 
 	metric := &Metric{}
 	if err := json.Unmarshal(result, metric); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing metric")
 	}
 
 	return metric, nil
@@ -78,12 +79,12 @@ func (a *API) FetchMetric(cid CIDType) (*Metric, error) {
 func (a *API) FetchMetrics() (*[]Metric, error) {
 	result, err := a.Get(config.MetricPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching metrics")
 	}
 
 	var metrics []Metric
 	if err := json.Unmarshal(result, &metrics); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing metrics")
 	}
 
 	return &metrics, nil
@@ -92,7 +93,7 @@ func (a *API) FetchMetrics() (*[]Metric, error) {
 // UpdateMetric updates passed metric.
 func (a *API) UpdateMetric(cfg *Metric) (*Metric, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid metric config [nil]")
+		return nil, errors.New("invalid metric config (nil)")
 	}
 
 	metricCID := cfg.CID
@@ -102,7 +103,7 @@ func (a *API) UpdateMetric(cfg *Metric) (*Metric, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid metric CID [%s]", metricCID)
+		return nil, errors.Errorf("invalid metric CID (%s)", metricCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -111,17 +112,17 @@ func (a *API) UpdateMetric(cfg *Metric) (*Metric, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update metric, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update metric, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(metricCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating metric")
 	}
 
 	metric := &Metric{}
 	if err := json.Unmarshal(result, metric); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing metric")
 	}
 
 	return metric, nil
@@ -156,12 +157,12 @@ func (a *API) SearchMetrics(searchCriteria *SearchQueryType, filterCriteria *Sea
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching metrics")
 	}
 
 	var metrics []Metric
 	if err := json.Unmarshal(result, &metrics); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing metrics")
 	}
 
 	return &metrics, nil

@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/circonus-labs/go-apiclient/config"
+	"github.com/pkg/errors"
 )
 
 // Annotation defines a annotation. See https://login.circonus.com/resources/api/calls/annotation for more information.
@@ -39,7 +40,7 @@ func NewAnnotation() *Annotation {
 // FetchAnnotation retrieves annotation with passed cid.
 func (a *API) FetchAnnotation(cid CIDType) (*Annotation, error) {
 	if cid == nil || *cid == "" {
-		return nil, fmt.Errorf("Invalid annotation CID [none]")
+		return nil, errors.New("invalid annotation CID (none)")
 	}
 
 	var annotationCID string
@@ -54,21 +55,21 @@ func (a *API) FetchAnnotation(cid CIDType) (*Annotation, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid annotation CID [%s]", annotationCID)
+		return nil, errors.Errorf("invalid annotation CID (%s)", annotationCID)
 	}
 
 	result, err := a.Get(annotationCID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching annotation")
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] fetch annotation, received JSON: %s", string(result))
+		a.Log.Printf("fetch annotation, received JSON: %s", string(result))
 	}
 
 	annotation := &Annotation{}
 	if err := json.Unmarshal(result, annotation); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing annotation")
 	}
 
 	return annotation, nil
@@ -78,12 +79,12 @@ func (a *API) FetchAnnotation(cid CIDType) (*Annotation, error) {
 func (a *API) FetchAnnotations() (*[]Annotation, error) {
 	result, err := a.Get(config.AnnotationPrefix)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching annotations")
 	}
 
 	var annotations []Annotation
 	if err := json.Unmarshal(result, &annotations); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing annotations")
 	}
 
 	return &annotations, nil
@@ -92,7 +93,7 @@ func (a *API) FetchAnnotations() (*[]Annotation, error) {
 // UpdateAnnotation updates passed annotation.
 func (a *API) UpdateAnnotation(cfg *Annotation) (*Annotation, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid annotation config [nil]")
+		return nil, errors.New("invalid annotation config (nil)")
 	}
 
 	annotationCID := cfg.CID
@@ -102,7 +103,7 @@ func (a *API) UpdateAnnotation(cfg *Annotation) (*Annotation, error) {
 		return nil, err
 	}
 	if !matched {
-		return nil, fmt.Errorf("Invalid annotation CID [%s]", annotationCID)
+		return nil, errors.Errorf("invalid annotation CID (%s)", annotationCID)
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -111,17 +112,17 @@ func (a *API) UpdateAnnotation(cfg *Annotation) (*Annotation, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] update annotation, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("update annotation, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Put(annotationCID, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "updating annotation")
 	}
 
 	annotation := &Annotation{}
 	if err := json.Unmarshal(result, annotation); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing annotation")
 	}
 
 	return annotation, nil
@@ -130,7 +131,7 @@ func (a *API) UpdateAnnotation(cfg *Annotation) (*Annotation, error) {
 // CreateAnnotation creates a new annotation.
 func (a *API) CreateAnnotation(cfg *Annotation) (*Annotation, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("Invalid annotation config [nil]")
+		return nil, errors.New("invalid annotation config (nil)")
 	}
 
 	jsonCfg, err := json.Marshal(cfg)
@@ -139,17 +140,17 @@ func (a *API) CreateAnnotation(cfg *Annotation) (*Annotation, error) {
 	}
 
 	if a.Debug {
-		a.Log.Printf("[DEBUG] create annotation, sending JSON: %s", string(jsonCfg))
+		a.Log.Printf("create annotation, sending JSON: %s", string(jsonCfg))
 	}
 
 	result, err := a.Post(config.AnnotationPrefix, jsonCfg)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "creating annotation")
 	}
 
 	annotation := &Annotation{}
 	if err := json.Unmarshal(result, annotation); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing annotation")
 	}
 
 	return annotation, nil
@@ -158,7 +159,7 @@ func (a *API) CreateAnnotation(cfg *Annotation) (*Annotation, error) {
 // DeleteAnnotation deletes passed annotation.
 func (a *API) DeleteAnnotation(cfg *Annotation) (bool, error) {
 	if cfg == nil {
-		return false, fmt.Errorf("Invalid annotation config [nil]")
+		return false, errors.New("invalid annotation config (nil)")
 	}
 
 	return a.DeleteAnnotationByCID(CIDType(&cfg.CID))
@@ -167,22 +168,27 @@ func (a *API) DeleteAnnotation(cfg *Annotation) (bool, error) {
 // DeleteAnnotationByCID deletes annotation with passed cid.
 func (a *API) DeleteAnnotationByCID(cid CIDType) (bool, error) {
 	if cid == nil || *cid == "" {
-		return false, fmt.Errorf("Invalid annotation CID [none]")
+		return false, errors.New("invalid annotation CID (none)")
 	}
 
-	annotationCID := *cid
+	var annotationCID string
+	if !strings.HasPrefix(*cid, config.AnnotationPrefix) {
+		annotationCID = fmt.Sprintf("%s/%s", config.AnnotationPrefix, *cid)
+	} else {
+		annotationCID = *cid
+	}
 
 	matched, err := regexp.MatchString(config.AnnotationCIDRegex, annotationCID)
 	if err != nil {
 		return false, err
 	}
 	if !matched {
-		return false, fmt.Errorf("Invalid annotation CID [%s]", annotationCID)
+		return false, errors.Errorf("invalid annotation CID (%s)", annotationCID)
 	}
 
 	_, err = a.Delete(annotationCID)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "deleting annotation")
 	}
 
 	return true, nil
@@ -217,12 +223,12 @@ func (a *API) SearchAnnotations(searchCriteria *SearchQueryType, filterCriteria 
 
 	result, err := a.Get(reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR] API call error %+v", err)
+		return nil, errors.Wrap(err, "searching annotations")
 	}
 
 	var annotations []Annotation
 	if err := json.Unmarshal(result, &annotations); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parsing annotations")
 	}
 
 	return &annotations, nil

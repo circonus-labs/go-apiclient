@@ -6,7 +6,6 @@ package apiclient
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -93,9 +92,8 @@ func testUserServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(f))
 }
 
-func TestFetchUser(t *testing.T) {
+func userTestBootstrap(t *testing.T) (*API, *httptest.Server) {
 	server := testUserServer()
-	defer server.Close()
 
 	ac := &Config{
 		TokenKey: "abc123",
@@ -104,197 +102,140 @@ func TestFetchUser(t *testing.T) {
 	}
 	apih, err := NewAPI(ac)
 	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
+		server.Close()
+		return nil, nil
 	}
 
-	t.Log("invalid CID [nil]")
-	{
-		user, err := apih.FetchUser(nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
+	return apih, server
+}
 
-		actualType := reflect.TypeOf(user)
-		expectedType := "*apiclient.User"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+func TestFetchUser(t *testing.T) {
+	apih, server := userTestBootstrap(t)
+	defer server.Close()
+
+	tests := []struct {
+		id           string
+		cid          string
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (cid)", "/invalid", "", true, "invalid user CID (" + config.UserPrefix + "//invalid)"},
+		{"valid (default,empty)", "", "*apiclient.User", false, ""},
+		{"valid (short cid)", "1234", "*apiclient.User", false, ""},
+		{"valid (long cid)", "/user/1234", "*apiclient.User", false, ""},
 	}
 
-	t.Log("invalid CID [\"\"]")
-	{
-		cid := ""
-		user, err := apih.FetchUser(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(user)
-		expectedType := "*apiclient.User"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-	}
-
-	t.Log("invalid CID [/invalid]")
-	{
-		cid := "/invalid"
-		expectedError := errors.New("Invalid user CID [" + config.UserPrefix + "/" + cid + "]")
-		_, err := apih.FetchUser(CIDType(&cid))
-		if err == nil {
-			t.Fatalf("Expected error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid CID")
-	{
-		cid := "/user/1234"
-		user, err := apih.FetchUser(CIDType(&cid))
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(user)
-		expectedType := "*apiclient.User"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
-
-		if user.CID != testUser.CID {
-			t.Fatalf("CIDs do not match: %+v != %+v\n", user, testUser)
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			cid := test.cid
+			acct, err := apih.FetchUser(CIDType(&cid))
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(acct).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(acct))
+				}
+			}
+		})
 	}
 }
 
 func TestFetchUsers(t *testing.T) {
-	server := testUserServer()
+	apih, server := userTestBootstrap(t)
 	defer server.Close()
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
 
 	users, err := apih.FetchUsers()
 	if err != nil {
-		t.Fatalf("Expected no error, got '%v'", err)
+		t.Fatalf("unexpected error (%s)", err)
 	}
 
-	actualType := reflect.TypeOf(users)
-	expectedType := "*[]apiclient.User"
-	if actualType.String() != expectedType {
-		t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
+	if reflect.TypeOf(users).String() != "*[]apiclient.User" {
+		t.Fatalf("unexpected type (%s)", reflect.TypeOf(users).String())
 	}
 
 }
 
 func TestUpdateUser(t *testing.T) {
-	server := testUserServer()
+	apih, server := userTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
-	t.Log("invalid config [nil]")
-	{
-		expectedError := errors.New("Invalid user config [nil]")
-		_, err := apih.UpdateUser(nil)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
+	tests := []struct {
+		id           string
+		cfg          *User
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"invalid (nil)", nil, "", true, "invalid user config (nil)"},
+		{"invalid (cid)", &User{CID: "/invalid"}, "", true, "invalid user CID (/invalid)"},
+		{"valid", &testUser, "*apiclient.User", false, ""},
 	}
 
-	t.Log("invalid config [CID /invalid]")
-	{
-		expectedError := errors.New("Invalid user CID [/invalid]")
-		x := &User{CID: "/invalid"}
-		_, err := apih.UpdateUser(x)
-		if err == nil {
-			t.Fatal("Expected an error")
-		}
-		if err.Error() != expectedError.Error() {
-			t.Fatalf("Expected %+v got '%+v'", expectedError, err)
-		}
-	}
-
-	t.Log("valid config")
-	{
-		User, err := apih.UpdateUser(&testUser)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(User)
-		expectedType := "*apiclient.User"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			acct, err := apih.UpdateUser(test.cfg)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(acct).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(acct))
+				}
+			}
+		})
 	}
 }
 
 func TestSearchUsers(t *testing.T) {
-	server := testUserServer()
+	apih, server := userTestBootstrap(t)
 	defer server.Close()
 
-	var apih *API
-
-	ac := &Config{
-		TokenKey: "abc123",
-		TokenApp: "test",
-		URL:      server.URL,
-	}
-	apih, err := NewAPI(ac)
-	if err != nil {
-		t.Errorf("Expected no error, got '%v'", err)
-	}
-
+	expectedType := "*[]apiclient.User"
 	filter := SearchFilterType(map[string][]string{"f_firstname": {"john"}, "f_lastname": {"doe"}})
 
-	t.Log("no filter")
-	{
-		users, err := apih.SearchUsers(nil)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(users)
-		expectedType := "*[]apiclient.User"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	tests := []struct {
+		id           string
+		filter       *SearchFilterType
+		expectedType string
+		shouldFail   bool
+		expectedErr  string
+	}{
+		{"no filter", nil, expectedType, false, ""},
+		{"filter", &filter, expectedType, false, ""},
 	}
 
-	t.Log("filter")
-	{
-		users, err := apih.SearchUsers(&filter)
-		if err != nil {
-			t.Fatalf("Expected no error, got '%v'", err)
-		}
-
-		actualType := reflect.TypeOf(users)
-		expectedType := "*[]apiclient.User"
-		if actualType.String() != expectedType {
-			t.Fatalf("Expected %s, got %s", expectedType, actualType.String())
-		}
+	for _, test := range tests {
+		test := test
+		t.Run(test.id, func(t *testing.T) {
+			ack, err := apih.SearchUsers(test.filter)
+			if test.shouldFail {
+				if err == nil {
+					t.Fatal("expected error")
+				} else if err.Error() != test.expectedErr {
+					t.Fatalf("unexpected error (%s)", err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error (%s)", err)
+				} else if reflect.TypeOf(ack).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(ack).String())
+				}
+			}
+		})
 	}
 }
