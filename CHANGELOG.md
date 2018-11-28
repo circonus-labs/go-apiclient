@@ -1,3 +1,7 @@
+# v0.5.3
+
+* upd: use std log for retryablehttp until dependency releases Logger interface
+
 # v0.5.2
 
 * upd: support any logging package with a `Printf` method via `Logger` interface rather than forcing `log.Logger` from standard log package

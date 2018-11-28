@@ -179,7 +179,7 @@ func New(ac *Config) (*API, error) {
 	a.Debug = ac.Debug
 	a.Log = ac.Log
 	if a.Debug && a.Log == nil {
-		a.Log = log.New(os.Stderr, "", log.LstdFlags)
+		a.Log = log.New(os.Stdout, "", log.LstdFlags)
 	}
 	if a.Log == nil {
 		a.Log = log.New(ioutil.Discard, "", log.LstdFlags)
@@ -380,7 +380,9 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 
 	// retryablehttp only groks log or no log
 	if a.Debug {
-		client.Logger = a.Log.(*log.Logger)
+		// uncomment below when Logger interface hits retryablehttp release
+		// client.Logger = a.Log
+		client.Logger = log.New(os.Stdout, "", log.LstdFlags)
 	} else {
 		client.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
 	}
