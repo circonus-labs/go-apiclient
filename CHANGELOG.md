@@ -1,3 +1,9 @@
+# v0.5.4
+
+* add: `search` (`*string`) attribute to graph datapoint
+* upd: `cluster_ip` (`*string`) can be string OR null
+* add: `cluster_ip` attribute to broker details
+
 # v0.5.3
 
 * upd: use std log for retryablehttp until dependency releases Logger interface
