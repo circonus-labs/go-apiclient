@@ -1,3 +1,7 @@
+# v0.6.0
+
+* fix: graph structures incorrectly represented nesting of overlay sets
+
 # v0.5.4
 
 * add: `search` (`*string`) attribute to graph datapoint
