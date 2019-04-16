@@ -50,20 +50,20 @@ type GraphComposite struct {
 
 // GraphDatapoint defines a datapoint
 type GraphDatapoint struct {
-	Alpha         *float64    `json:"alpha,string,omitempty"` // float64
-	Axis          string      `json:"axis,omitempty"`         // string
-	CAQL          *string     `json:"caql,omitempty"`         // string or null
-	CheckID       uint        `json:"check_id,omitempty"`     // uint
-	Color         *string     `json:"color,omitempty"`        // string
-	DataFormula   *string     `json:"data_formula"`           // string or null
-	Derive        interface{} `json:"derive,omitempty"`       // BUG doc: string, api: string or boolean(for caql statements)
-	Hidden        bool        `json:"hidden"`                 // boolean
-	LegendFormula *string     `json:"legend_formula"`         // string or null
-	MetricName    string      `json:"metric_name,omitempty"`  // string
-	MetricType    string      `json:"metric_type,omitempty"`  // string
-	Name          string      `json:"name"`                   // string
-	Search        *string     `json:"search"`                 // string or null
-	Stack         *uint       `json:"stack"`                  // uint or null
+	Alpha         *float64    `json:"alpha,omitempty"`       // float64
+	Axis          string      `json:"axis,omitempty"`        // string
+	CAQL          *string     `json:"caql,omitempty"`        // string or null
+	CheckID       uint        `json:"check_id,omitempty"`    // uint
+	Color         *string     `json:"color,omitempty"`       // string
+	DataFormula   *string     `json:"data_formula"`          // string or null
+	Derive        interface{} `json:"derive,omitempty"`      // BUG doc: string, api: string or boolean(for caql statements)
+	Hidden        bool        `json:"hidden"`                // boolean
+	LegendFormula *string     `json:"legend_formula"`        // string or null
+	MetricName    string      `json:"metric_name,omitempty"` // string
+	MetricType    string      `json:"metric_type,omitempty"` // string
+	Name          string      `json:"name"`                  // string
+	Search        *string     `json:"search"`                // string or null
+	Stack         *uint       `json:"stack"`                 // uint or null
 }
 
 // GraphGuide defines a guide
@@ -88,52 +88,6 @@ type GraphMetricCluster struct {
 	Stack         *uint   `json:"stack"`                        // uint or null
 }
 
-// type OverlayDataOptions struct {
-// 	Alerts        *int   `json:"alerts,string,omitempty"`         // int encoded as string BUG doc: numeric, api: string
-// 	ArrayOutput   *int   `json:"array_output,string,omitempty"`   // int encoded as string BUG doc: numeric, api: string
-// 	BasePeriod    *int   `json:"base_period,string,omitempty"`    // int encoded as string BUG doc: numeric, api: string
-// 	Delay         *int   `json:"delay,string,omitempty"`          // int encoded as string BUG doc: numeric, api: string
-// 	Extension     string `json:"extension,omitempty"`             // string
-// 	GraphTitle    string `json:"graph_title,omitempty"`           // string
-// 	GraphUUID     string `json:"graph_id,omitempty"`              // string
-// 	InPercent     *bool  `json:"in_percent,string,omitempty"`     // boolean encoded as string BUG doc: boolean, api: string
-// 	Inverse       *int   `json:"inverse,string,omitempty"`        // int encoded as string BUG doc: numeric, api: string
-// 	Method        string `json:"method,omitempty"`                // string
-// 	Model         string `json:"model,omitempty"`                 // string
-// 	ModelEnd      string `json:"model_end,omitempty"`             // string
-// 	ModelPeriod   string `json:"model_period,omitempty"`          // string
-// 	ModelRelative *int   `json:"model_relative,string,omitempty"` // int encoded as string BUG doc: numeric, api: string
-// 	Out           string `json:"out,omitempty"`                   // string
-// 	Prequel       string `json:"prequel,omitempty"`               // string
-// 	Presets       string `json:"presets,omitempty"`               // string
-// 	Quantiles     string `json:"quantiles,omitempty"`             // string
-// 	SeasonLength  *int   `json:"season_length,string,omitempty"`  // int encoded as string BUG doc: numeric, api: string
-// 	Sensitivity   *int   `json:"sensitivity,string,omitempty"`    // int encoded as string BUG doc: numeric, api: string
-// 	SingleValue   *int   `json:"single_value,string,omitempty"`   // int encoded as string BUG doc: numeric, api: string
-// 	TargetPeriod  string `json:"target_period,omitempty"`         // string
-// 	TimeOffset    string `json:"time_offset,omitempty"`           // string
-// 	TimeShift     *int   `json:"time_shift,string,omitempty"`     // int encoded as string BUG doc: numeric, api: string
-// 	Transform     string `json:"transform,omitempty"`             // string
-// 	Version       *int   `json:"version,string,omitempty"`        // int encoded as string BUG doc: numeric, api: string
-// 	Window        *int   `json:"window,string,omitempty"`         // int encoded as string BUG doc: numeric, api: string
-// 	XShift        string `json:"x_shift,omitempty"`               // string
-// }
-
-// type OverlayUISpecs struct {
-// 	Decouple bool   `json:"decouple,omitempty"` // boolean
-// 	ID       string `json:"id,omitempty"`       // string
-// 	Label    string `json:"label,omitempty"`    // string
-// 	Type     string `json:"type,omitempty"`     // string
-// 	Z        *int   `json:"z,string,omitempty"` // int encoded as string BUG doc: numeric, api: string
-// }
-
-// type GraphOverlaySet struct {
-// 	DataOpts OverlayDataOptions `json:"data_opts,omitempty"` // OverlayDataOptions
-// 	ID       string             `json:"id,omitempty"`        // string
-// 	Title    string             `json:"title,omitempty"`     // string
-// 	UISpecs  OverlayUISpecs     `json:"ui_specs,omitempty"`  // OverlayUISpecs
-// }
-
 // OverlaySet defines an overlay set for a graph
 type GraphOverlaySet struct {
 	Overlays map[string]GraphOverlay `json:"overlays"`
@@ -154,40 +108,40 @@ type OverlayUISpecs struct {
 	ID       string `json:"id,omitempty"`       // string
 	Label    string `json:"label,omitempty"`    // string
 	Type     string `json:"type,omitempty"`     // string
-	Z        *int   `json:"z,omitempty"`        // int encoded as string BUG doc: numeric, api: string
+	Z        string `json:"z,omitempty"`        // int encoded as string BUG doc: numeric, api: string
 }
 
 // OverlayDataOptions defines overlay options for data. Note, each overlay type requires
 // a _subset_ of the options. See Graph API documentation (URL above) for details.
 type OverlayDataOptions struct {
-	Alerts        *int    `json:"alerts,omitempty"`         // int encoded as string BUG doc: numeric, api: string
-	ArrayOutput   *int    `json:"array_output,omitempty"`   // int encoded as string BUG doc: numeric, api: string
-	BasePeriod    *int    `json:"base_period,omitempty"`    // int encoded as string BUG doc: numeric, api: string
-	Delay         *int    `json:"delay,omitempty"`          // int encoded as string BUG doc: numeric, api: string
-	Extension     string  `json:"extension,omitempty"`      // string
-	GraphTitle    string  `json:"graph_title,omitempty"`    // string
-	GraphUUID     string  `json:"graph_id,omitempty"`       // string
-	InPercent     *string `json:"in_percent,omitempty"`     // boolean encoded as string BUG doc: boolean, api: string
-	Inverse       *int    `json:"inverse,omitempty"`        // int encoded as string BUG doc: numeric, api: string
-	Method        string  `json:"method,omitempty"`         // string
-	Model         string  `json:"model,omitempty"`          // string
-	ModelEnd      string  `json:"model_end,omitempty"`      // string
-	ModelPeriod   string  `json:"model_period,omitempty"`   // string
-	ModelRelative *int    `json:"model_relative,omitempty"` // int encoded as string BUG doc: numeric, api: string
-	Out           string  `json:"out,omitempty"`            // string
-	Prequel       *int    `json:"prequel,omitempty"`        // int
-	Presets       string  `json:"presets,omitempty"`        // string
-	Quantiles     string  `json:"quantiles,omitempty"`      // string
-	SeasonLength  *int    `json:"season_length,omitempty"`  // int encoded as string BUG doc: numeric, api: string
-	Sensitivity   *int    `json:"sensitivity,omitempty"`    // int encoded as string BUG doc: numeric, api: string
-	SingleValue   *int    `json:"single_value,omitempty"`   // int encoded as string BUG doc: numeric, api: string
-	TargetPeriod  *string `json:"target_period,omitempty"`  // string
-	TimeOffset    string  `json:"time_offset,omitempty"`    // string
-	TimeShift     *int    `json:"time_shift,omitempty"`     // int encoded as string BUG doc: numeric, api: string
-	Transform     string  `json:"transform,omitempty"`      // string
-	Version       *int    `json:"version,omitempty"`        // int encoded as string BUG doc: numeric, api: string
-	Window        *int    `json:"window,omitempty"`         // int encoded as string BUG doc: numeric, api: string
-	XShift        string  `json:"x_shift,omitempty"`        // string
+	Alerts        string `json:"alerts,omitempty"`         // int encoded as string BUG doc: numeric, api: string
+	ArrayOutput   string `json:"array_output,omitempty"`   // int encoded as string BUG doc: numeric, api: string
+	BasePeriod    string `json:"base_period,omitempty"`    // int encoded as string BUG doc: numeric, api: string
+	Delay         string `json:"delay,omitempty"`          // int encoded as string BUG doc: numeric, api: string
+	Extension     string `json:"extension,omitempty"`      // string
+	GraphTitle    string `json:"graph_title,omitempty"`    // string
+	GraphUUID     string `json:"graph_id,omitempty"`       // string
+	InPercent     string `json:"in_percent,omitempty"`     // boolean encoded as string BUG doc: boolean, api: string
+	Inverse       string `json:"inverse,omitempty"`        // int encoded as string BUG doc: numeric, api: string
+	Method        string `json:"method,omitempty"`         // string
+	Model         string `json:"model,omitempty"`          // string
+	ModelEnd      string `json:"model_end,omitempty"`      // string
+	ModelPeriod   string `json:"model_period,omitempty"`   // string
+	ModelRelative string `json:"model_relative,omitempty"` // int encoded as string BUG doc: numeric, api: string
+	Out           string `json:"out,omitempty"`            // string
+	Prequel       string `json:"prequel,omitempty"`        // int
+	Presets       string `json:"presets,omitempty"`        // string
+	Quantiles     string `json:"quantiles,omitempty"`      // string
+	SeasonLength  string `json:"season_length,omitempty"`  // int encoded as string BUG doc: numeric, api: string
+	Sensitivity   string `json:"sensitivity,omitempty"`    // int encoded as string BUG doc: numeric, api: string
+	SingleValue   string `json:"single_value,omitempty"`   // int encoded as string BUG doc: numeric, api: string
+	TargetPeriod  string `json:"target_period,omitempty"`  // string
+	TimeOffset    string `json:"time_offset,omitempty"`    // string
+	TimeShift     string `json:"time_shift,omitempty"`     // int encoded as string BUG doc: numeric, api: string
+	Transform     string `json:"transform,omitempty"`      // string
+	Version       string `json:"version,omitempty"`        // int encoded as string BUG doc: numeric, api: string
+	Window        string `json:"window,omitempty"`         // int encoded as string BUG doc: numeric, api: string
+	XShift        string `json:"x_shift,omitempty"`        // string
 }
 
 // Graph defines a graph. See https://login.circonus.com/resources/api/calls/graph for more information.
