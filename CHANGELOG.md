@@ -1,3 +1,8 @@
+# v0.6.1
+
+* add: full overlay test suite to `examples/graph/overlays`
+* fix: incorrect attribute types in graph overlays (docs vs what api actually returns)
+
 # v0.6.0
 
 * fix: graph structures incorrectly represented nesting of overlay sets
