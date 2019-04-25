@@ -1,3 +1,7 @@
+# v0.6.2
+
+* upd: dependencies (retryablehttp)
+
 # v0.6.1
 
 * add: full overlay test suite to `examples/graph/overlays`
