@@ -380,9 +380,7 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 
 	// retryablehttp only groks log or no log
 	if a.Debug {
-		// uncomment below when Logger interface hits retryablehttp release
-		// client.Logger = a.Log
-		client.Logger = log.New(os.Stdout, "", log.LstdFlags)
+		client.Logger = a.Log
 	} else {
 		client.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
 	}
