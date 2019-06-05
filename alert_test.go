@@ -123,7 +123,6 @@ func TestFetchAlert(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid alert CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid alert CID (/alert//invalid)"},
 		{"short cid", "1234", "*apiclient.Alert", false, ""},
 		{"long cid", "/alert/1234", "*apiclient.Alert", false, ""},
 	}

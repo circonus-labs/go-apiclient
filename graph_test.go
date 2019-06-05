@@ -183,7 +183,6 @@ func TestFetchGraph(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid graph CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid graph CID (/graph//invalid)"},
 		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Graph", false, ""},
 		{"long cid", "/graph/01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Graph", false, ""},
 	}
@@ -304,7 +303,6 @@ func TestDeleteGraph(t *testing.T) {
 		expectedErr string
 	}{
 		{"invalid (nil)", nil, true, "invalid graph config (nil)"},
-		{"invalid (cid)", &Graph{CID: "/invalid"}, true, "invalid graph CID (/graph//invalid)"},
 		{"valid", &testGraph, false, ""},
 	}
 
@@ -340,7 +338,6 @@ func TestDeleteGraphByCID(t *testing.T) {
 		expectedErr string
 	}{
 		{"empty cid", "", true, "invalid graph CID (none)"},
-		{"invalid cid", "/invalid", true, "invalid graph CID (/graph//invalid)"},
 		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", false, ""},
 		{"long cid", "/graph/01234567-89ab-cdef-0123-456789abcdef", false, ""},
 	}

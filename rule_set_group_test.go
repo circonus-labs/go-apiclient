@@ -174,7 +174,6 @@ func TestFetchRuleSetGroup(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid rule set group CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid rule set group CID (/rule_set_group//invalid)"},
 		{"short cid", "1234", "*apiclient.RuleSetGroup", false, ""},
 		{"long cid", "/rule_set_group/1234", "*apiclient.RuleSetGroup", false, ""},
 	}
@@ -298,7 +297,6 @@ func TestDeleteRuleSetGroup(t *testing.T) {
 		expectedErr string
 	}{
 		{"invalid (nil)", nil, true, "invalid rule set group config (nil)"},
-		{"invalid (cid)", &RuleSetGroup{CID: "/invalid"}, true, "invalid rule set group CID (/rule_set_group//invalid)"},
 		{"valid", &testRuleSetGroup, false, ""},
 	}
 
@@ -334,7 +332,6 @@ func TestDeleteRuleSetGroupByCID(t *testing.T) {
 		expectedErr string
 	}{
 		{"empty cid", "", true, "invalid rule set group CID (none)"},
-		{"invalid cid", "/invalid", true, "invalid rule set group CID (/rule_set_group//invalid)"},
 		{"short cid", "1234", false, ""},
 		{"long cid", "/rule_set_group/1234", false, ""},
 	}

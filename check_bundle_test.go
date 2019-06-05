@@ -156,7 +156,6 @@ func TestFetchCheckBundle(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid check bundle CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid check bundle CID (/check_bundle//invalid)"},
 		{"short cid", "1234", "*apiclient.CheckBundle", false, ""},
 		{"long cid", "/check_bundle/1234", "*apiclient.CheckBundle", false, ""},
 	}
@@ -277,7 +276,6 @@ func TestDeleteCheckBundle(t *testing.T) {
 		expectedErr string
 	}{
 		{"invalid (nil)", nil, true, "invalid check bundle config (nil)"},
-		{"invalid (cid)", &CheckBundle{CID: "/invalid"}, true, "invalid check bundle CID (/check_bundle//invalid)"},
 		{"valid", &testCheckBundle, false, ""},
 	}
 
@@ -313,7 +311,6 @@ func TestDeleteCheckBundleByCID(t *testing.T) {
 		expectedErr string
 	}{
 		{"empty cid", "", true, "invalid check bundle CID (none)"},
-		{"invalid cid", "/invalid", true, "invalid check bundle CID (/check_bundle//invalid)"},
 		{"short cid", "1234", false, ""},
 		{"long cid", "/check_bundle/1234", false, ""},
 	}

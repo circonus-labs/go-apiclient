@@ -157,7 +157,6 @@ func TestFetchWorksheet(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid worksheet CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid worksheet CID (/worksheet//invalid)"},
 		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Worksheet", false, ""},
 		{"long cid", "/worksheet/01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Worksheet", false, ""},
 	}
@@ -282,7 +281,6 @@ func TestDeleteWorksheet(t *testing.T) {
 		expectedErr string
 	}{
 		{"invalid (nil)", nil, true, "invalid worksheet config (nil)"},
-		{"invalid (cid)", &Worksheet{CID: "/invalid"}, true, "invalid worksheet CID (/worksheet//invalid)"},
 		{"valid", &testWorksheet, false, ""},
 	}
 
@@ -318,7 +316,6 @@ func TestDeleteWorksheetByCID(t *testing.T) {
 		expectedErr string
 	}{
 		{"empty cid", "", true, "invalid worksheet CID (none)"},
-		{"invalid cid", "/invalid", true, "invalid worksheet CID (/worksheet//invalid)"},
 		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", false, ""},
 		{"long cid", "/worksheet/01234567-89ab-cdef-0123-456789abcdef", false, ""},
 	}

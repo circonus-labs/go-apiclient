@@ -48,6 +48,43 @@ var (
 			},
 		},
 	}
+
+	// rule_set CID format changed 2019-06-05...
+	// original cid format /rule_set/checkid_metricname
+	// new cid format /rule_set/[0-9]+
+	testRuleSetNewCID = RuleSet{ //nolint:gochecknoglobals
+		CID:      "/rule_set/1234",
+		CheckCID: "/check/1234",
+		ContactGroups: map[uint8][]string{
+			1: {"/contact_group/1234", "/contact_group/5678"},
+			2: {"/contact_group/1234"},
+			3: {"/contact_group/1234"},
+			4: {},
+			5: {},
+		},
+		Derive:     nil,
+		Link:       &[]string{"http://example.com/how2fix/webserver_down/"}[0],
+		MetricName: "tt_firstbyte",
+		MetricType: "numeric",
+		Notes:      &[]string{"Determine if the HTTP request is taking too long to start (or is down.)  Don't fire if ping is already alerting"}[0],
+		Parent:     &[]string{"1233_ping"}[0],
+		Rules: []RuleSetRule{
+			{
+				Criteria:          "on absence",
+				Severity:          1,
+				Value:             "300",
+				Wait:              5,
+				WindowingDuration: 300,
+				WindowingFunction: nil,
+			},
+			{
+				Criteria: "max value",
+				Severity: 2,
+				Value:    "1000",
+				Wait:     5,
+			},
+		},
+	}
 )
 
 func testRuleSetServer() *httptest.Server {
@@ -57,6 +94,32 @@ func testRuleSetServer() *httptest.Server {
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testRuleSet)
+				if err != nil {
+					panic(err)
+				}
+				w.WriteHeader(200)
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintln(w, string(ret))
+			case "PUT":
+				defer r.Body.Close()
+				b, err := ioutil.ReadAll(r.Body)
+				if err != nil {
+					panic(err)
+				}
+				w.WriteHeader(200)
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintln(w, string(b))
+			case "DELETE":
+				w.WriteHeader(200)
+				w.Header().Set("Content-Type", "application/json")
+			default:
+				w.WriteHeader(404)
+				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+			}
+		} else if path == "/rule_set/1234" { //nolint:dupl
+			switch r.Method {
+			case "GET":
+				ret, err := json.Marshal(testRuleSetNewCID)
 				if err != nil {
 					panic(err)
 				}
@@ -170,9 +233,10 @@ func TestFetchRuleSet(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid rule set CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid rule set CID (/rule_set//invalid)"},
-		{"short cid", "1234_tt_firstbyte", "*apiclient.RuleSet", false, ""},
-		{"long cid", "/rule_set/1234_tt_firstbyte", "*apiclient.RuleSet", false, ""},
+		{"short (old) cid", "1234_tt_firstbyte", "*apiclient.RuleSet", false, ""},
+		{"long (old) cid", "/rule_set/1234_tt_firstbyte", "*apiclient.RuleSet", false, ""},
+		{"short (new) cid", "1234", "*apiclient.RuleSet", false, ""},
+		{"long (new) cid", "/rule_set/1234", "*apiclient.RuleSet", false, ""},
 	}
 
 	for _, test := range tests {
@@ -224,6 +288,7 @@ func TestUpdateRuleSet(t *testing.T) {
 		{"invalid (nil)", nil, "", true, "invalid rule set config (nil)"},
 		{"invalid (cid)", &RuleSet{CID: "/invalid"}, "", true, "invalid rule set CID (/invalid)"},
 		{"valid", &testRuleSet, "*apiclient.RuleSet", false, ""},
+		{"valid", &testRuleSetNewCID, "*apiclient.RuleSet", false, ""},
 	}
 
 	for _, test := range tests {
@@ -260,6 +325,7 @@ func TestCreateRuleSet(t *testing.T) {
 	}{
 		{"invalid (nil)", nil, "", true, "invalid rule set config (nil)"},
 		{"valid", &testRuleSet, "*apiclient.RuleSet", false, ""},
+		{"valid", &testRuleSetNewCID, "*apiclient.RuleSet", false, ""},
 	}
 
 	for _, test := range tests {
@@ -294,8 +360,8 @@ func TestDeleteRuleSet(t *testing.T) {
 		expectedErr string
 	}{
 		{"invalid (nil)", nil, true, "invalid rule set config (nil)"},
-		{"invalid (cid)", &RuleSet{CID: "/invalid"}, true, "invalid rule set CID (/rule_set//invalid)"},
 		{"valid", &testRuleSet, false, ""},
+		{"valid", &testRuleSetNewCID, false, ""},
 	}
 
 	for _, test := range tests {
@@ -330,9 +396,10 @@ func TestDeleteRuleSetByCID(t *testing.T) {
 		expectedErr string
 	}{
 		{"empty cid", "", true, "invalid rule set CID (none)"},
-		{"invalid cid", "/invalid", true, "invalid rule set CID (/rule_set//invalid)"},
-		{"short cid", "1234_tt_firstbyte", false, ""},
-		{"long cid", "/rule_set/1234_tt_firstbyte", false, ""},
+		{"short (old) cid", "1234_tt_firstbyte", false, ""},
+		{"long (old) cid", "/rule_set/1234_tt_firstbyte", false, ""},
+		{"short (new) cid", "1234", false, ""},
+		{"long (new) cid", "/rule_set/1234", false, ""},
 	}
 
 	for _, test := range tests {

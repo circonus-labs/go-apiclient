@@ -55,8 +55,8 @@ func testMetricClusterServer() *httptest.Server {
 				w.WriteHeader(200)
 				fmt.Fprintln(w, "")
 			default:
-				w.WriteHeader(500)
-				fmt.Fprintln(w, "unsupported")
+				w.WriteHeader(404)
+				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, r.URL.Path))
 			}
 		case "/metric_cluster":
 			switch r.Method {
@@ -88,7 +88,7 @@ func testMetricClusterServer() *httptest.Server {
 					fmt.Fprintln(w, string(ret))
 				} else {
 					w.WriteHeader(404)
-					fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, reqURL))
+					fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, r.URL.Path))
 				}
 			case "POST": // create
 				defer r.Body.Close()
@@ -100,12 +100,12 @@ func testMetricClusterServer() *httptest.Server {
 				w.Header().Set("Content-Type", "application/json")
 				fmt.Fprintln(w, string(b))
 			default:
-				w.WriteHeader(500)
-				fmt.Fprintln(w, "unsupported")
+				w.WriteHeader(404)
+				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, r.URL.Path))
 			}
 		default:
-			w.WriteHeader(500)
-			fmt.Fprintln(w, "unsupported")
+			w.WriteHeader(404)
+			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, r.URL.Path))
 		}
 	}
 
@@ -150,7 +150,6 @@ func TestFetchMetricCluster(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", "", true, "invalid metric cluster CID (none)"},
-		{"invalid cid", "/invalid", "", "", true, "invalid metric cluster CID (/metric_cluster//invalid)"},
 		{"short cid", "1234", "", "*apiclient.MetricCluster", false, ""},
 		{"long cid", "/metric_cluster/1234", "", "*apiclient.MetricCluster", false, ""},
 		{"cid xtra/metrics", "/metric_cluster/1234", "metrics", "*apiclient.MetricCluster", false, ""},
@@ -299,7 +298,6 @@ func TestDeleteMetricCluster(t *testing.T) {
 		expectedErr string
 	}{
 		{"invalid (nil)", nil, true, "invalid metric cluster config (nil)"},
-		{"invalid (cid)", &MetricCluster{CID: "/invalid"}, true, "invalid metric cluster CID (/metric_cluster//invalid)"},
 		{"valid", &testMetricCluster, false, ""},
 	}
 
@@ -335,7 +333,6 @@ func TestDeleteMetricClusterByCID(t *testing.T) {
 		expectedErr string
 	}{
 		{"empty cid", "", true, "invalid metric cluster CID (none)"},
-		{"invalid cid", "/invalid", true, "invalid metric cluster CID (/metric_cluster//invalid)"},
 		{"short cid", "1234", false, ""},
 		{"long cid", "/metric_cluster/1234", false, ""},
 	}

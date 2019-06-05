@@ -535,7 +535,6 @@ func TestFetchDashboard(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid dashboard CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid dashboard CID (/dashboard//invalid)"},
 		{"short cid", "1234", "*apiclient.Dashboard", false, ""},
 		{"long cid", "/dashboard/1234", "*apiclient.Dashboard", false, ""},
 	}
@@ -656,7 +655,6 @@ func TestDeleteDashboard(t *testing.T) {
 		expectedErr string
 	}{
 		{"invalid (nil)", nil, true, "invalid dashboard config (nil)"},
-		{"invalid (cid)", &Dashboard{CID: "/invalid"}, true, "invalid dashboard CID (/dashboard//invalid)"},
 		{"valid", &testDashboard, false, ""},
 	}
 
@@ -692,7 +690,6 @@ func TestDeleteDashboardByCID(t *testing.T) {
 		expectedErr string
 	}{
 		{"empty cid", "", true, "invalid dashboard CID (none)"},
-		{"invalid cid", "/invalid", true, "invalid dashboard CID (/dashboard//invalid)"},
 		{"short cid", "1234", false, ""},
 		{"long cid", "/dashboard/1234", false, ""},
 	}

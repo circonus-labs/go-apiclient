@@ -148,7 +148,6 @@ func TestFetchOutlierReport(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid outlier report CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid outlier report CID (/outlier_report//invalid)"},
 		{"short cid", "1234", "*apiclient.OutlierReport", false, ""},
 		{"long cid", "/outlier_report/1234", "*apiclient.OutlierReport", false, ""},
 	}
@@ -273,7 +272,6 @@ func TestDeleteOutlierReport(t *testing.T) {
 		expectedErr string
 	}{
 		{"invalid (nil)", nil, true, "invalid outlier report config (nil)"},
-		{"invalid (cid)", &OutlierReport{CID: "/invalid"}, true, "invalid outlier report CID (/outlier_report//invalid)"},
 		{"valid", &testOutlierReport, false, ""},
 	}
 
@@ -309,7 +307,6 @@ func TestDeleteOutlierReportByCID(t *testing.T) {
 		expectedErr string
 	}{
 		{"empty cid", "", true, "invalid outlier report CID (none)"},
-		{"invalid cid", "/invalid", true, "invalid outlier report CID (/outlier_report//invalid)"},
 		{"short cid", "1234", false, ""},
 		{"long cid", "/outlier_report/1234", false, ""},
 	}
