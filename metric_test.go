@@ -128,7 +128,6 @@ func TestFetchMetric(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid metric CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid metric CID (/metric//invalid)"},
 		{"short cid", "1234_foo", "*apiclient.Metric", false, ""},
 		{"long cid", "/metric/1234_foo", "*apiclient.Metric", false, ""},
 	}

@@ -114,7 +114,6 @@ func TestFetchCheck(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid check CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid check CID (/check//invalid)"},
 		{"short cid", "1234", "*apiclient.Check", false, ""},
 		{"long cid", "/check/1234", "*apiclient.Check", false, ""},
 	}

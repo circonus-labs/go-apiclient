@@ -12,8 +12,6 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
-
-	"github.com/circonus-labs/go-apiclient/config"
 )
 
 var (
@@ -81,11 +79,11 @@ func testUserServer() *httptest.Server {
 				}
 			default:
 				w.WriteHeader(404)
-				fmt.Fprintln(w, "not found")
+				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
 		} else {
 			w.WriteHeader(404)
-			fmt.Fprintln(w, "not found")
+			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}
 	}
 
@@ -121,7 +119,6 @@ func TestFetchUser(t *testing.T) {
 		shouldFail   bool
 		expectedErr  string
 	}{
-		{"invalid (cid)", "/invalid", "", true, "invalid user CID (" + config.UserPrefix + "//invalid)"},
 		{"valid (default,empty)", "", "*apiclient.User", false, ""},
 		{"valid (short cid)", "1234", "*apiclient.User", false, ""},
 		{"valid (long cid)", "/user/1234", "*apiclient.User", false, ""},

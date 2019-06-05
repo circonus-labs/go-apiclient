@@ -144,7 +144,6 @@ func TestFetchAcknowledgement(t *testing.T) {
 		expectedErr  string
 	}{
 		{"invalid (empty cid)", "", "", true, "invalid acknowledgement CID (none)"},
-		{"invalid (cid)", "/invalid", "", true, "invalid acknowledgement CID (/acknowledgement//invalid)"},
 		{"valid (short cid)", "1234", "*apiclient.Acknowledgement", false, ""},
 		{"valid (long cid)", "/acknowledgement/1234", "*apiclient.Acknowledgement", false, ""},
 	}

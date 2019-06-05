@@ -12,8 +12,6 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
-
-	"github.com/circonus-labs/go-apiclient/config"
 )
 
 var (
@@ -151,7 +149,6 @@ func TestFetchAccount(t *testing.T) {
 		shouldFail   bool
 		expectedErr  string
 	}{
-		{"invalid (cid)", "/invalid", "", true, "invalid account CID (" + config.AccountPrefix + "//invalid)"},
 		{"valid (default,empty)", "", "*apiclient.Account", false, ""},
 		{"valid (short cid)", "1234", "*apiclient.Account", false, ""},
 		{"valid (long cid)", "/account/1234", "*apiclient.Account", false, ""},

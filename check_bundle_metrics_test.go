@@ -92,7 +92,6 @@ func TestFetchCheckBundleMetrics(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid check bundle metrics CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid check bundle metrics CID (/check_bundle_metrics//invalid)"},
 		{"short cid", "1234", "*apiclient.CheckBundleMetrics", false, ""},
 		{"long cid", "/check_bundle_metrics/1234", "*apiclient.CheckBundleMetrics", false, ""},
 	}

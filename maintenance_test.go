@@ -147,7 +147,6 @@ func TestFetchMaintenanceWindow(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid maintenance window CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid maintenance window CID (/maintenance//invalid)"},
 		{"short cid", "1234", "*apiclient.Maintenance", false, ""},
 		{"long cid", "/maintenance/1234", "*apiclient.Maintenance", false, ""},
 	}
@@ -271,7 +270,6 @@ func TestDeleteMaintenanceWindow(t *testing.T) {
 		expectedErr string
 	}{
 		{"invalid (nil)", nil, true, "invalid maintenance window config (nil)"},
-		{"invalid (cid)", &Maintenance{CID: "/invalid"}, true, "invalid maintenance window CID (/maintenance//invalid)"},
 		{"valid", &testMaintenance, false, ""},
 	}
 
@@ -307,7 +305,6 @@ func TestDeleteMaintenanceWindowByCID(t *testing.T) {
 		expectedErr string
 	}{
 		{"empty cid", "", true, "invalid maintenance window CID (none)"},
-		{"invalid cid", "/invalid", true, "invalid maintenance window CID (/maintenance//invalid)"},
 		{"short cid", "1234", false, ""},
 		{"long cid", "/maintenance/1234", false, ""},
 	}

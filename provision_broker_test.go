@@ -125,7 +125,6 @@ func TestFetchProvisionBroker(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid provision broker CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid provision broker CID (/provision_broker//invalid)"},
 		{"short cid", "abc-1234", "*apiclient.ProvisionBroker", false, ""},
 		{"long cid", "/provision_broker/abc-1234", "*apiclient.ProvisionBroker", false, ""},
 	}
@@ -164,8 +163,8 @@ func TestUpdateProvisionBroker(t *testing.T) {
 		expectedErr  string
 	}{
 		{"invalid (cid)", "", nil, "", true, "invalid provision broker CID (none)"},
-		{"invalid (cfg)", "foo", nil, "", true, "invalid provision broker config (nil)"},
-		{"invalid (cid)", "/invalid", &testProvisionBroker, "", true, "invalid provision broker CID (/invalid)"},
+		{"invalid (cfg)", "abc", nil, "", true, "invalid provision broker config (nil)"},
+		{"invalid (cid)", "/invalid", &ProvisionBroker{}, "", true, "invalid provision broker CID (/invalid)"},
 		{"valid", "/provision_broker/abc-1234", &testProvisionBroker, "*apiclient.ProvisionBroker", false, ""},
 	}
 

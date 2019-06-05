@@ -182,7 +182,6 @@ func TestFetchContactGroup(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid contact group CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid contact group CID (/contact_group//invalid)"},
 		{"short cid", "1234", "*apiclient.ContactGroup", false, ""},
 		{"long cid", "/contact_group/1234", "*apiclient.ContactGroup", false, ""},
 	}
@@ -304,7 +303,6 @@ func TestDeleteContactGroup(t *testing.T) {
 		expectedErr string
 	}{
 		{"invalid (nil)", nil, true, "invalid contact group config (nil)"},
-		{"invalid (cid)", &ContactGroup{CID: "/invalid"}, true, "invalid contact group CID (/contact_group//invalid)"},
 		{"valid", &testContactGroup, false, ""},
 	}
 
@@ -340,7 +338,6 @@ func TestDeleteContactGroupByCID(t *testing.T) {
 		expectedErr string
 	}{
 		{"empty cid", "", true, "invalid contact group CID (none)"},
-		{"invalid cid", "/invalid", true, "invalid contact group CID (/contact_group//invalid)"},
 		{"short cid", "1234", false, ""},
 		{"long cid", "/contact_group/1234", false, ""},
 	}

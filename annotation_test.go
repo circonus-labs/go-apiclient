@@ -147,7 +147,6 @@ func TestFetchAnnotation(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid annotation CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid annotation CID (/annotation//invalid)"},
 		{"short cid", "1234", "*apiclient.Annotation", false, ""},
 		{"long cid", "/annotation/1234", "*apiclient.Annotation", false, ""},
 	}
@@ -268,7 +267,6 @@ func TestDeleteAnnotation(t *testing.T) {
 		expectedErr string
 	}{
 		{"invalid (nil)", nil, true, "invalid annotation config (nil)"},
-		{"invalid (cid)", &Annotation{CID: "/invalid"}, true, "invalid annotation CID (/annotation//invalid)"},
 		{"valid", &testAnnotation, false, ""},
 	}
 
@@ -304,7 +302,6 @@ func TestDeleteAnnotationByCID(t *testing.T) {
 		expectedErr string
 	}{
 		{"empty cid", "", true, "invalid annotation CID (none)"},
-		{"invalid cid", "/invalid", true, "invalid annotation CID (/annotation//invalid)"},
 		{"short cid", "1234", false, ""},
 		{"long cid", "/annotation/1234", false, ""},
 	}

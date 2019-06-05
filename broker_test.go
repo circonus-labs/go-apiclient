@@ -126,7 +126,6 @@ func TestFetchBroker(t *testing.T) {
 		expectedErr  string
 	}{
 		{"empty cid", "", "", true, "invalid broker CID (none)"},
-		{"invalid cid", "/invalid", "", true, "invalid broker CID (/broker//invalid)"},
 		{"short cid", "1234", "*apiclient.Broker", false, ""},
 		{"long cid", "/broker/1234", "*apiclient.Broker", false, ""},
 	}
