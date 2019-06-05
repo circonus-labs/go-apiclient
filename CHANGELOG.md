@@ -1,3 +1,8 @@
+# v0.6.3
+
+* upd: remove tests for invalid cids
+* fix: validate cids on prefix only to compensate for breaking change to rule_set cid in public v2 api
+
 # v0.6.2
 
 * upd: dependencies (retryablehttp)
