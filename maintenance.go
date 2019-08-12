@@ -143,7 +143,7 @@ func (a *API) CreateMaintenanceWindow(cfg *Maintenance) (*Maintenance, error) {
 
 	result, err := a.Post(config.MaintenancePrefix, jsonCfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating maintenace window")
+		return nil, errors.Wrap(err, "creating maintenance window")
 	}
 
 	window := &Maintenance{}

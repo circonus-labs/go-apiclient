@@ -41,7 +41,8 @@ var (
 func testBrokerServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/broker/1234" {
+		switch path {
+		case "/broker/1234":
 			switch r.Method {
 			case "GET": // get by id/cid
 				ret, err := json.Marshal(testBroker)
@@ -55,20 +56,21 @@ func testBrokerServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/broker" {
+		case "/broker":
 			switch r.Method {
 			case "GET": // search or filter
 				reqURL := r.URL.String()
 				var c []Broker
-				if r.URL.String() == "/broker?search=httptrap" {
+				switch r.URL.String() {
+				case "/broker?search=httptrap":
 					c = []Broker{testBroker}
-				} else if r.URL.String() == "/broker?f__type=enterprise" {
+				case "/broker?f__type=enterprise":
 					c = []Broker{testBroker}
-				} else if r.URL.String() == "/broker?f__type=enterprise&search=httptrap" {
+				case "/broker?f__type=enterprise&search=httptrap":
 					c = []Broker{testBroker}
-				} else if reqURL == "/broker" {
+				case "/broker":
 					c = []Broker{testBroker}
-				} else {
+				default:
 					c = []Broker{}
 				}
 				if len(c) > 0 {
@@ -87,7 +89,7 @@ func testBrokerServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

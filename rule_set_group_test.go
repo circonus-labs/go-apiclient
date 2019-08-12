@@ -57,7 +57,8 @@ var (
 func testRuleSetGroupServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/rule_set_group/1234" {
+		switch path {
+		case "/rule_set_group/1234":
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testRuleSetGroup)
@@ -83,20 +84,21 @@ func testRuleSetGroupServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/rule_set_group" {
+		case "/rule_set_group":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []RuleSetGroup
-				if reqURL == "/rule_set_group?search=web+requests" {
+				switch reqURL {
+				case "/rule_set_group?search=web+requests":
 					c = []RuleSetGroup{testRuleSetGroup}
-				} else if reqURL == "/rule_set_group?f_tags_has=location%3Aconus" {
+				case "/rule_set_group?f_tags_has=location%3Aconus":
 					c = []RuleSetGroup{testRuleSetGroup}
-				} else if reqURL == "/rule_set_group?f_tags_has=location%3Aconus&search=web+requests" {
+				case "/rule_set_group?f_tags_has=location%3Aconus&search=web+requests":
 					c = []RuleSetGroup{testRuleSetGroup}
-				} else if reqURL == "/rule_set_group" {
+				case "/rule_set_group":
 					c = []RuleSetGroup{testRuleSetGroup}
-				} else {
+				default:
 					c = []RuleSetGroup{}
 				}
 				if len(c) > 0 {
@@ -128,7 +130,7 @@ func testRuleSetGroupServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

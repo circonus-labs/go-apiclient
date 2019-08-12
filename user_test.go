@@ -30,7 +30,10 @@ var (
 func testUserServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/user/1234" || path == "/user/current" {
+		switch path {
+		case "/user/current":
+			fallthrough
+		case "/user/1234":
 			switch r.Method {
 			case "GET": // get by id/cid
 				ret, err := json.Marshal(testUser)
@@ -53,16 +56,17 @@ func testUserServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, "not found")
 			}
-		} else if path == "/user" {
+		case "/user":
 			switch r.Method {
 			case "GET":
-				reqURL := r.URL.String()
 				var c []User
-				if reqURL == "/user?f_firstname=john&f_lastname=doe" {
+				reqURL := r.URL.String()
+				switch reqURL {
+				case "/user?f_firstname=john&f_lastname=doe":
 					c = []User{testUser}
-				} else if reqURL == "/user" {
+				case "/user":
 					c = []User{testUser}
-				} else {
+				default:
 					c = []User{}
 				}
 				if len(c) > 0 {
@@ -81,7 +85,7 @@ func testUserServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

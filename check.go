@@ -30,6 +30,7 @@ type Check struct {
 	CheckUUID      string       `json:"_check_uuid"`   // string
 	CID            string       `json:"_cid"`          // string
 	Details        CheckDetails `json:"_details"`      // NOTE contents of details are check type specific, map len >= 0
+	ReverseURLs    []string     `json:"_reverse_urls"` // []string list of reverse urls (one per broker in cluster)
 }
 
 // FetchCheck retrieves check with passed cid.

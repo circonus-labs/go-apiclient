@@ -31,7 +31,8 @@ var (
 func testOutlierReportServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/outlier_report/1234" {
+		switch path {
+		case "/outlier_report/1234":
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testOutlierReport)
@@ -57,20 +58,21 @@ func testOutlierReportServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/outlier_report" {
+		case "/outlier_report":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []OutlierReport
-				if reqURL == "/outlier_report?search=requests+per+second" {
+				switch reqURL {
+				case "/outlier_report?search=requests+per+second":
 					c = []OutlierReport{testOutlierReport}
-				} else if reqURL == "/outlier_report?f_tags_has=service%3Aweb" {
+				case "/outlier_report?f_tags_has=service%3Aweb":
 					c = []OutlierReport{testOutlierReport}
-				} else if reqURL == "/outlier_report?f_tags_has=service%3Aweb&search=requests+per+second" {
+				case "/outlier_report?f_tags_has=service%3Aweb&search=requests+per+second":
 					c = []OutlierReport{testOutlierReport}
-				} else if reqURL == "/outlier_report" {
+				case "/outlier_report":
 					c = []OutlierReport{testOutlierReport}
-				} else {
+				default:
 					c = []OutlierReport{}
 				}
 				if len(c) > 0 {
@@ -102,7 +104,7 @@ func testOutlierReportServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

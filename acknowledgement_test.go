@@ -30,7 +30,8 @@ var (
 func testAcknowledgementServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/acknowledgement/1234" {
+		switch path {
+		case "/acknowledgement/1234":
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testAcknowledgement)
@@ -53,20 +54,21 @@ func testAcknowledgementServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/acknowledgement" {
+		case "/acknowledgement":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []Acknowledgement
-				if r.URL.String() == "/acknowledgement?search=%28notes%3D%22something%22%29" {
+				switch r.URL.String() {
+				case "/acknowledgement?search=%28notes%3D%22something%22%29":
 					c = []Acknowledgement{testAcknowledgement}
-				} else if r.URL.String() == "/acknowledgement?f__active=true" {
+				case "/acknowledgement?f__active=true":
 					c = []Acknowledgement{testAcknowledgement}
-				} else if r.URL.String() == "/acknowledgement?f__active=true&search=%28notes%3D%22something%22%29" {
+				case "/acknowledgement?f__active=true&search=%28notes%3D%22something%22%29":
 					c = []Acknowledgement{testAcknowledgement}
-				} else if reqURL == "/acknowledgement" {
+				case "/acknowledgement":
 					c = []Acknowledgement{testAcknowledgement}
-				} else {
+				default:
 					c = []Acknowledgement{}
 				}
 				if len(c) > 0 {
@@ -98,7 +100,7 @@ func testAcknowledgementServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

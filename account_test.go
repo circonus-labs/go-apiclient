@@ -60,7 +60,10 @@ var (
 func testAccountServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/account/1234" || path == "/account/current" {
+		switch path {
+		case "/account/1234":
+			fallthrough
+		case "/account/current":
 			switch r.Method {
 			case "GET": // get by id/cid
 				ret, err := json.Marshal(testAccount)
@@ -83,16 +86,17 @@ func testAccountServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, "not found")
 			}
-		} else if path == "/account" {
+		case "/account":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []Account
-				if reqURL == "/account?f_name_wildcard=%2Aops%2A" {
+				switch reqURL {
+				case "/account?f_name_wildcard=%2Aops%2A":
 					c = []Account{testAccount}
-				} else if reqURL == "/account" {
+				case "/account":
 					c = []Account{testAccount}
-				} else {
+				default:
 					c = []Account{}
 				}
 				if len(c) > 0 {
@@ -111,7 +115,7 @@ func testAccountServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, "not found")
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, "not found")
 		}

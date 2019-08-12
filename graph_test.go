@@ -66,7 +66,8 @@ var (
 func testGraphServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/graph/01234567-89ab-cdef-0123-456789abcdef" {
+		switch path {
+		case "/graph/01234567-89ab-cdef-0123-456789abcdef":
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testGraph)
@@ -92,20 +93,21 @@ func testGraphServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/graph" {
+		case "/graph":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []Graph
-				if reqURL == "/graph?search=CPU+Utilization" {
+				switch reqURL {
+				case "/graph?search=CPU+Utilization":
 					c = []Graph{testGraph}
-				} else if reqURL == "/graph?f__tags_has=os%3Arhel7" {
+				case "/graph?f__tags_has=os%3Arhel7":
 					c = []Graph{testGraph}
-				} else if reqURL == "/graph?f__tags_has=os%3Arhel7&search=CPU+Utilization" {
+				case "/graph?f__tags_has=os%3Arhel7&search=CPU+Utilization":
 					c = []Graph{testGraph}
-				} else if reqURL == "/graph" {
+				case "/graph":
 					c = []Graph{testGraph}
-				} else {
+				default:
 					c = []Graph{}
 				}
 				if len(c) > 0 {
@@ -137,7 +139,7 @@ func testGraphServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

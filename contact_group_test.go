@@ -66,7 +66,8 @@ var (
 func testContactGroupServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/contact_group/1234" {
+		switch path {
+		case "/contact_group/1234":
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testContactGroup)
@@ -92,20 +93,21 @@ func testContactGroupServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/contact_group" {
+		case "/contact_group":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []ContactGroup
-				if reqURL == "/contact_group?search=%28name%3D%22ops%22%29" {
+				switch reqURL {
+				case "/contact_group?search=%28name%3D%22ops%22%29":
 					c = []ContactGroup{testContactGroup}
-				} else if reqURL == "/contact_group?f__last_modified_gt=1483639916" {
+				case "/contact_group?f__last_modified_gt=1483639916":
 					c = []ContactGroup{testContactGroup}
-				} else if reqURL == "/contact_group?f__last_modified_gt=1483639916&search=%28name%3D%22ops%22%29" {
+				case "/contact_group?f__last_modified_gt=1483639916&search=%28name%3D%22ops%22%29":
 					c = []ContactGroup{testContactGroup}
-				} else if reqURL == "/contact_group" {
+				case "/contact_group":
 					c = []ContactGroup{testContactGroup}
-				} else {
+				default:
 					c = []ContactGroup{}
 				}
 				if len(c) > 0 {
@@ -137,7 +139,7 @@ func testContactGroupServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

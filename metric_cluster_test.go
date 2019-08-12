@@ -63,19 +63,20 @@ func testMetricClusterServer() *httptest.Server {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []MetricCluster
-				if reqURL == "/metric_cluster?search=web+servers" {
+				switch reqURL {
+				case "/metric_cluster?search=web+servers":
 					c = []MetricCluster{testMetricCluster}
-				} else if reqURL == "/metric_cluster?f_tags_has=dc%3Asfo1" {
+				case "/metric_cluster?f_tags_has=dc%3Asfo1":
 					c = []MetricCluster{testMetricCluster}
-				} else if reqURL == "/metric_cluster?f_tags_has=dc%3Asfo1&search=web+servers" {
+				case "/metric_cluster?f_tags_has=dc%3Asfo1&search=web+servers":
 					c = []MetricCluster{testMetricCluster}
-				} else if reqURL == "/metric_cluster" {
+				case "/metric_cluster":
 					c = []MetricCluster{testMetricCluster}
-				} else if reqURL == "/metric_cluster?extra=_matching_metrics" {
+				case "/metric_cluster?extra=_matching_metrics":
 					c = []MetricCluster{testMetricCluster}
-				} else if reqURL == "/metric_cluster?extra=_matching_uuid_metrics" {
+				case "/metric_cluster?extra=_matching_uuid_metrics":
 					c = []MetricCluster{testMetricCluster}
-				} else {
+				default:
 					c = []MetricCluster{}
 				}
 				if len(c) > 0 {

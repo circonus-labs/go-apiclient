@@ -1,3 +1,9 @@
+# v0.6.5
+
+* upd: dependencies
+* upd: stricter linting
+* add: `_reverse_urls` attribute to check object
+
 # v0.6.4
 
 * fix: graph.datapoint.alpha - doc:floating point number, api:string

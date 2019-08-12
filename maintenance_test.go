@@ -30,7 +30,8 @@ var (
 func testMaintenanceServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/maintenance/1234" {
+		switch path {
+		case "/maintenance/1234":
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testMaintenance)
@@ -56,20 +57,21 @@ func testMaintenanceServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/maintenance" {
+		case "/maintenance":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []Maintenance
-				if reqURL == "/maintenance?search=%2Fcheck_bundle%2F1234" {
+				switch reqURL {
+				case "/maintenance?search=%2Fcheck_bundle%2F1234":
 					c = []Maintenance{testMaintenance}
-				} else if reqURL == "/maintenance?f_start_gt=1483639916" {
+				case "/maintenance?f_start_gt=1483639916":
 					c = []Maintenance{testMaintenance}
-				} else if reqURL == "/maintenance?f_start_gt=1483639916&search=%2Fcheck_bundle%2F1234" {
+				case "/maintenance?f_start_gt=1483639916&search=%2Fcheck_bundle%2F1234":
 					c = []Maintenance{testMaintenance}
-				} else if reqURL == "/maintenance" {
+				case "/maintenance":
 					c = []Maintenance{testMaintenance}
-				} else {
+				default:
 					c = []Maintenance{}
 				}
 				if len(c) > 0 {
@@ -101,7 +103,7 @@ func testMaintenanceServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}
