@@ -43,7 +43,8 @@ var (
 func testCheckBundleServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/check_bundle/1234" {
+		switch path {
+		case "/check_bundle/1234":
 			switch r.Method {
 			case "PUT": // update
 				defer r.Body.Close()
@@ -69,20 +70,21 @@ func testCheckBundleServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/check_bundle" {
+		case "/check_bundle":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []CheckBundle
-				if reqURL == "/check_bundle?search=test" {
+				switch reqURL {
+				case "/check_bundle?search=test":
 					c = []CheckBundle{testCheckBundle}
-				} else if reqURL == "/check_bundle?f__tags_has=cat%3Atag" {
+				case "/check_bundle?f__tags_has=cat%3Atag":
 					c = []CheckBundle{testCheckBundle}
-				} else if reqURL == "/check_bundle?f__tags_has=cat%3Atag&search=test" {
+				case "/check_bundle?f__tags_has=cat%3Atag&search=test":
 					c = []CheckBundle{testCheckBundle}
-				} else if reqURL == "/check_bundle" {
+				case "/check_bundle":
 					c = []CheckBundle{testCheckBundle}
-				} else {
+				default:
 					c = []CheckBundle{}
 				}
 				if len(c) > 0 {
@@ -110,7 +112,7 @@ func testCheckBundleServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

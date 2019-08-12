@@ -34,7 +34,8 @@ var (
 func testMetricServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/metric/1234_foo" {
+		switch path {
+		case "/metric/1234_foo":
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testMetric)
@@ -57,20 +58,21 @@ func testMetricServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/metric" {
+		case "/metric":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []Metric
-				if reqURL == "/metric?search=vm%60memory%60used" {
+				switch reqURL {
+				case "/metric?search=vm%60memory%60used":
 					c = []Metric{testMetric}
-				} else if reqURL == "/metric?f_tags_has=service%3Acache" {
+				case "/metric?f_tags_has=service%3Acache":
 					c = []Metric{testMetric}
-				} else if reqURL == "/metric?f_tags_has=service%3Acache&search=vm%60memory%60used" {
+				case "/metric?f_tags_has=service%3Acache&search=vm%60memory%60used":
 					c = []Metric{testMetric}
-				} else if reqURL == "/metric" {
+				case "/metric":
 					c = []Metric{testMetric}
-				} else {
+				default:
 					c = []Metric{}
 				}
 				if len(c) > 0 {
@@ -89,7 +91,7 @@ func testMetricServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

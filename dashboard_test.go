@@ -422,7 +422,8 @@ func init() {
 func testDashboardServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/dashboard/1234" {
+		switch path {
+		case "/dashboard/1234":
 			switch r.Method {
 			case "GET":
 				w.WriteHeader(200)
@@ -444,20 +445,21 @@ func testDashboardServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/dashboard" {
+		case "/dashboard":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []Dashboard
-				if reqURL == "/dashboard?search=my+dashboard" {
+				switch reqURL {
+				case "/dashboard?search=my+dashboard":
 					c = []Dashboard{testDashboard}
-				} else if reqURL == "/dashboard?f__created_gt=1483639916" {
+				case "/dashboard?f__created_gt=1483639916":
 					c = []Dashboard{testDashboard}
-				} else if reqURL == "/dashboard?f__created_gt=1483639916&search=my+dashboard" {
+				case "/dashboard?f__created_gt=1483639916&search=my+dashboard":
 					c = []Dashboard{testDashboard}
-				} else if reqURL == "/dashboard" {
+				case "/dashboard":
 					c = []Dashboard{testDashboard}
-				} else {
+				default:
 					c = []Dashboard{}
 				}
 				if len(c) > 0 {
@@ -489,7 +491,7 @@ func testDashboardServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

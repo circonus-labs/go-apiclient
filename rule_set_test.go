@@ -90,7 +90,8 @@ var (
 func testRuleSetServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/rule_set/1234_tt_firstbyte" {
+		switch path {
+		case "/rule_set/1234_tt_firstbyte":
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testRuleSet)
@@ -116,7 +117,7 @@ func testRuleSetServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/rule_set/1234" { //nolint:dupl
+		case "/rule_set/1234": //nolint:dupl
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testRuleSetNewCID)
@@ -142,20 +143,21 @@ func testRuleSetServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/rule_set" {
+		case "/rule_set":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []RuleSet
-				if reqURL == "/rule_set?search=request%60latency_ms" {
+				switch reqURL {
+				case "/rule_set?search=request%60latency_ms":
 					c = []RuleSet{testRuleSet}
-				} else if reqURL == "/rule_set?f_tags_has=service%3Aweb" {
+				case "/rule_set?f_tags_has=service%3Aweb":
 					c = []RuleSet{testRuleSet}
-				} else if reqURL == "/rule_set?f_tags_has=service%3Aweb&search=request%60latency_ms" {
+				case "/rule_set?f_tags_has=service%3Aweb&search=request%60latency_ms":
 					c = []RuleSet{testRuleSet}
-				} else if reqURL == "/rule_set" {
+				case "/rule_set":
 					c = []RuleSet{testRuleSet}
-				} else {
+				default:
 					c = []RuleSet{}
 				}
 				if len(c) > 0 {
@@ -187,7 +189,7 @@ func testRuleSetServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

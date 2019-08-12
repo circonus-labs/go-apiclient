@@ -40,11 +40,14 @@ type User struct {
 func (a *API) FetchUser(cid CIDType) (*User, error) {
 	var userCID string
 
-	if cid == nil || *cid == "" {
+	switch {
+	case cid == nil:
+		fallthrough
+	case *cid == "":
 		userCID = config.UserPrefix + "/current"
-	} else if !strings.HasPrefix(*cid, config.UserPrefix) {
+	case !strings.HasPrefix(*cid, config.UserPrefix):
 		userCID = fmt.Sprintf("%s/%s", config.UserPrefix, *cid)
-	} else {
+	default:
 		userCID = *cid
 	}
 
@@ -127,7 +130,7 @@ func (a *API) UpdateUser(cfg *User) (*User, error) {
 }
 
 // SearchUsers returns users matching a filter (search queries
-// are not suppoted by the user endpoint). Pass nil as filter for all
+// are not supported by the user endpoint). Pass nil as filter for all
 // users available to the API Token.
 func (a *API) SearchUsers(filterCriteria *SearchFilterType) (*[]User, error) {
 	q := url.Values{}

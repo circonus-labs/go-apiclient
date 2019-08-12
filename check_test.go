@@ -29,7 +29,8 @@ var (
 func testCheckServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/check/1234" {
+		switch path {
+		case "/check/1234":
 			switch r.Method {
 			case "GET": // get by id/cid
 				ret, err := json.Marshal(testCheck)
@@ -43,20 +44,22 @@ func testCheckServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/check" {
+		case "/check":
 			switch r.Method {
 			case "GET": // search or filter
 				reqURL := r.URL.String()
 				var c []Check
-				if reqURL == "/check?search=test" {
+				switch reqURL {
+
+				case "/check?search=test":
 					c = []Check{testCheck}
-				} else if reqURL == "/check?f__tags_has=cat%3Atag" {
+				case "/check?f__tags_has=cat%3Atag":
 					c = []Check{testCheck}
-				} else if reqURL == "/check?f__tags_has=cat%3Atag&search=test" {
+				case "/check?f__tags_has=cat%3Atag&search=test":
 					c = []Check{testCheck}
-				} else if reqURL == "/check" {
+				case "/check":
 					c = []Check{testCheck}
-				} else {
+				default:
 					c = []Check{}
 				}
 				if len(c) > 0 {
@@ -75,7 +78,7 @@ func testCheckServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

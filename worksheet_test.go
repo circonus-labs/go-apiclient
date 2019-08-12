@@ -40,7 +40,8 @@ var (
 func testWorksheetServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/worksheet/01234567-89ab-cdef-0123-456789abcdef" {
+		switch path {
+		case "/worksheet/01234567-89ab-cdef-0123-456789abcdef":
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testWorksheet)
@@ -66,20 +67,21 @@ func testWorksheetServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/worksheet" {
+		case "/worksheet":
 			switch r.Method {
 			case "GET":
-				reqURL := r.URL.String()
 				var c []Worksheet
-				if reqURL == "/worksheet?search=web+servers" {
+				reqURL := r.URL.String()
+				switch reqURL {
+				case "/worksheet?search=web+servers":
 					c = []Worksheet{testWorksheet}
-				} else if reqURL == "/worksheet?f_favorite=true" {
+				case "/worksheet?f_favorite=true":
 					c = []Worksheet{testWorksheet}
-				} else if reqURL == "/worksheet?f_favorite=true&search=web+servers" {
+				case "/worksheet?f_favorite=true&search=web+servers":
 					c = []Worksheet{testWorksheet}
-				} else if reqURL == "/worksheet" {
+				case "/worksheet":
 					c = []Worksheet{testWorksheet}
-				} else {
+				default:
 					c = []Worksheet{}
 				}
 				if len(c) > 0 {
@@ -111,7 +113,7 @@ func testWorksheetServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

@@ -62,11 +62,14 @@ type Account struct {
 func (a *API) FetchAccount(cid CIDType) (*Account, error) {
 	var accountCID string
 
-	if cid == nil || *cid == "" {
+	switch {
+	case cid == nil:
+		fallthrough
+	case *cid == "":
 		accountCID = config.AccountPrefix + "/current"
-	} else if !strings.HasPrefix(*cid, config.AccountPrefix) {
+	case !strings.HasPrefix(*cid, config.AccountPrefix):
 		accountCID = fmt.Sprintf("%s/%s", config.AccountPrefix, *cid)
-	} else {
+	default:
 		accountCID = *cid
 	}
 
@@ -149,7 +152,7 @@ func (a *API) UpdateAccount(cfg *Account) (*Account, error) {
 }
 
 // SearchAccounts returns accounts matching a filter (search queries are not
-// suppoted by the account endpoint). Pass nil as filter for all accounts the
+// supported by the account endpoint). Pass nil as filter for all accounts the
 // API Token can access.
 func (a *API) SearchAccounts(filterCriteria *SearchFilterType) (*[]Account, error) {
 	q := url.Values{}

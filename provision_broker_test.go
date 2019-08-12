@@ -37,7 +37,8 @@ var (
 func testProvisionBrokerServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/provision_broker/abc-1234" {
+		switch path {
+		case "/provision_broker/abc-1234":
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testProvisionBroker)
@@ -60,7 +61,7 @@ func testProvisionBrokerServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/provision_broker" {
+		case "/provision_broker":
 			switch r.Method {
 			case "POST":
 				defer r.Body.Close()
@@ -79,7 +80,7 @@ func testProvisionBrokerServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}

@@ -38,7 +38,8 @@ var (
 func testAlertServer() *httptest.Server {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if path == "/alert/1234" {
+		switch path {
+		case "/alert/1234":
 			switch r.Method {
 			case "GET":
 				ret, err := json.Marshal(testAlert)
@@ -52,20 +53,22 @@ func testAlertServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else if path == "/alert" {
+		case "/alert":
 			switch r.Method {
 			case "GET":
 				reqURL := r.URL.String()
 				var c []Alert
-				if reqURL == "/alert?search=%28host%3D%22somehost.example.com%22%29" {
+				switch reqURL {
+
+				case "/alert?search=%28host%3D%22somehost.example.com%22%29":
 					c = []Alert{testAlert}
-				} else if reqURL == "/alert?f__cleared_on=null" {
+				case "/alert?f__cleared_on=null":
 					c = []Alert{testAlert}
-				} else if reqURL == "/alert?f__cleared_on=null&search=%28host%3D%22somehost.example.com%22%29" {
+				case "/alert?f__cleared_on=null&search=%28host%3D%22somehost.example.com%22%29":
 					c = []Alert{testAlert}
-				} else if reqURL == "/alert" {
+				case "/alert":
 					c = []Alert{testAlert}
-				} else {
+				default:
 					c = []Alert{}
 				}
 				if len(c) > 0 {
@@ -84,7 +87,7 @@ func testAlertServer() *httptest.Server {
 				w.WriteHeader(404)
 				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 			}
-		} else {
+		default:
 			w.WriteHeader(404)
 			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
 		}
