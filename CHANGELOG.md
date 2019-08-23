@@ -1,3 +1,7 @@
+# v0.6.6
+
+* fix: typo on struct attr 'omitempt' 
+
 # v0.6.5
 
 * upd: dependencies
