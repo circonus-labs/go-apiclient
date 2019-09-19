@@ -1,6 +1,11 @@
+# v0.6.7
+
+* add: new rule_set attributes `_host`, `filter`, `metric_pattern`, and `name`.
+* upd: go1.13
+
 # v0.6.6
 
-* fix: typo on struct attr 'omitempt' 
+* fix: typo on struct attr 'omitempt'
 
 # v0.6.5
 
