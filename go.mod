@@ -5,3 +5,5 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.5.4
 	github.com/pkg/errors v0.8.1
 )
+
+go 1.13
