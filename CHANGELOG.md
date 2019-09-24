@@ -1,3 +1,7 @@
+# v0.6.8
+
+* upd: force logging of json being sent to api
+
 # v0.6.7
 
 * add: new rule_set attributes `_host`, `filter`, `metric_pattern`, and `name`.
