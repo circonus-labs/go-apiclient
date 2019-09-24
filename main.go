@@ -316,6 +316,8 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 		return false, nil
 	}
 
+	a.Log.Printf("[DEBUG] sending json (%s)\n", string(data))
+
 	dataReader := bytes.NewReader(data)
 
 	req, err := retryablehttp.NewRequest(reqMethod, reqURL, dataReader)
