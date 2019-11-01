@@ -544,7 +544,7 @@ func TestFetchDashboard(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.id, func(t *testing.T) {
-			alert, err := apih.FetchDashboard(CIDType(&test.cid))
+			dash, err := apih.FetchDashboard(CIDType(&test.cid))
 			if test.shouldFail {
 				if err == nil {
 					t.Fatal("expected error")
@@ -554,9 +554,15 @@ func TestFetchDashboard(t *testing.T) {
 			} else {
 				if err != nil {
 					t.Fatalf("unexpected error (%s)", err)
-				} else if reflect.TypeOf(alert).String() != test.expectedType {
-					t.Fatalf("unexpected type (%s)", reflect.TypeOf(alert).String())
-				}
+				} else if reflect.TypeOf(dash).String() != test.expectedType {
+					t.Fatalf("unexpected type (%s)", reflect.TypeOf(dash).String())
+				} /* else {
+					data, err := json.MarshalIndent(dash, "", "  ")
+					if err != nil {
+						t.Fatalf("unexpected error marshing (%s)", err)
+					}
+					fmt.Printf("%s\n", string(data))
+				}*/
 			}
 		})
 	}
