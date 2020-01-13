@@ -27,7 +27,7 @@ type RuleSetGroupFormula struct {
 
 // RuleSetGroupCondition defines conditions for raising alerts
 type RuleSetGroupCondition struct {
-	MatchingSeverities []string `json:"matching_serverities"` // [] len >= 1
+	MatchingSeverities []string `json:"matching_severities"` // [] len >= 1
 	RuleSetCID         string   `json:"rule_set"`             // string
 }
 
