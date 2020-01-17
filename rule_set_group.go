@@ -27,8 +27,8 @@ type RuleSetGroupFormula struct {
 
 // RuleSetGroupCondition defines conditions for raising alerts
 type RuleSetGroupCondition struct {
-	MatchingSeverities []string `json:"matching_serverities"` // [] len >= 1
-	RuleSetCID         string   `json:"rule_set"`             // string
+	MatchingSeverities []string `json:"matching_severities"` // [] len >= 1
+	RuleSetCID         string   `json:"rule_set"`            // string
 }
 
 // RuleSetGroup defines a ruleset group. See https://login.circonus.com/resources/api/calls/rule_set_group for more information.
