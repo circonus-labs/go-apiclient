@@ -209,8 +209,37 @@ var jsondash = `{
     {
       "active": true,
       "height": 1,
-      "name": "Status",
+      "name": "State",
       "origin": "b2",
+      "settings": {
+        "caql": "find(\"available\", \"and(dc:atl1,category:management)\") | stats:mean()",
+        "good_color": "#6fa428",
+        "title": "Test",
+        "account_id": "1234",
+        "text_align": "left",
+        "metric_display_name": "None",
+        "display_markup": "Ping Status",
+        "show_value": false,
+        "layout_style": "inside",
+        "bad_rules": [
+            {
+               "value": "100",
+               "color": "#dd9224",
+               "criterion": "minimum"
+            }
+         ],
+         "link_url": ""
+      },
+      "type": "state",
+      "widget_id": "w11",
+      "width": 1
+    },
+
+    {
+      "active": true,
+      "height": 1,
+      "name": "Status",
+      "origin": "c2",
       "settings": {
         "account_id": "1234",
         "agent_status_settings": {
@@ -232,7 +261,7 @@ var jsondash = `{
         }
       },
       "type": "status",
-      "widget_id": "w11",
+      "widget_id": "w12",
       "width": 1
     },
     {
