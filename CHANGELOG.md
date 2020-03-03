@@ -1,6 +1,18 @@
-# v0.7.1
+# v0.7.4
 
 * fix: `metric_type` field on dashboard state widget
+
+# v0.7.3
+
+* add: state widget to dashboard
+
+# v0.7.2
+
+* fix: `/rule_set_group` formulas, raise_severity api bug; mixed types - POST takes an int and returns a string. GET returns an int
+
+# v0.7.1
+
+* fix: typo in rule_set_group matching_severities
 
 # v0.7.0
 
