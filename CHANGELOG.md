@@ -1,3 +1,7 @@
+# v0.7.1
+
+* fix: `metric_type` field on dashboard state widget
+
 # v0.7.0
 
 * fix: forecast gauge `flip` required, remove omitempty
