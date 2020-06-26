@@ -25,7 +25,6 @@ var (
 			4: {},
 			5: {},
 		},
-		Derive:     nil,
 		Link:       &[]string{"http://example.com/how2fix/webserver_down/"}[0],
 		MetricName: "tt_firstbyte",
 		MetricType: "numeric",
@@ -62,7 +61,6 @@ var (
 			4: {},
 			5: {},
 		},
-		Derive:     nil,
 		Link:       &[]string{"http://example.com/how2fix/webserver_down/"}[0],
 		MetricName: "tt_firstbyte",
 		MetricType: "numeric",
@@ -115,7 +113,7 @@ func testRuleSetServer() *httptest.Server {
 				w.Header().Set("Content-Type", "application/json")
 			default:
 				w.WriteHeader(404)
-				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+				fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 			}
 		case "/rule_set/1234": //nolint:dupl
 			switch r.Method {
@@ -141,7 +139,7 @@ func testRuleSetServer() *httptest.Server {
 				w.Header().Set("Content-Type", "application/json")
 			default:
 				w.WriteHeader(404)
-				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+				fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 			}
 		case "/rule_set":
 			switch r.Method {
@@ -170,7 +168,7 @@ func testRuleSetServer() *httptest.Server {
 					fmt.Fprintln(w, string(ret))
 				} else {
 					w.WriteHeader(404)
-					fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, reqURL))
+					fmt.Fprintf(w, "not found: %s %s\n", r.Method, reqURL)
 				}
 			case "POST":
 				defer r.Body.Close()
@@ -187,11 +185,11 @@ func testRuleSetServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			default:
 				w.WriteHeader(404)
-				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+				fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 			}
 		default:
 			w.WriteHeader(404)
-			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+			fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 		}
 	}
 

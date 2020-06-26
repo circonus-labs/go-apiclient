@@ -51,11 +51,11 @@ func testCheckBundleMetricsServer() *httptest.Server {
 				fmt.Fprintln(w, string(b))
 			default:
 				w.WriteHeader(404)
-				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+				fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 			}
 		} else {
 			w.WriteHeader(404)
-			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+			fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 		}
 	}
 

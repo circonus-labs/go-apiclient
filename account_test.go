@@ -109,7 +109,7 @@ func testAccountServer() *httptest.Server {
 					fmt.Fprintln(w, string(ret))
 				} else {
 					w.WriteHeader(404)
-					fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, reqURL))
+					fmt.Fprintln(w, "not found: "+r.Method+" "+reqURL)
 				}
 			default:
 				w.WriteHeader(404)

@@ -54,7 +54,7 @@ func testBrokerServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			default:
 				w.WriteHeader(404)
-				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+				fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 			}
 		case "/broker":
 			switch r.Method {
@@ -83,15 +83,15 @@ func testBrokerServer() *httptest.Server {
 					fmt.Fprintln(w, string(ret))
 				} else {
 					w.WriteHeader(404)
-					fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, reqURL))
+					fmt.Fprintf(w, "not found: %s %s\n", r.Method, reqURL)
 				}
 			default:
 				w.WriteHeader(404)
-				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+				fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 			}
 		default:
 			w.WriteHeader(404)
-			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+			fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 		}
 	}
 
