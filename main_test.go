@@ -70,20 +70,19 @@ func retryCallServer() *httptest.Server {
 func TestNew(t *testing.T) {
 
 	tests := []struct {
-		id          string
-		cfg         *Config
-		shouldFail  bool
-		expectedErr string
+		id         string
+		cfg        *Config
+		shouldFail bool
 	}{
-		{"invalid config (nil)", nil, true, "invalid Circonus API configuration (nil)"},
-		{"invalid config (blank)", &Config{}, true, "Circonus API Token is required"},
-		{"token - default app/url", &Config{TokenKey: "foo"}, false, ""},
-		{"token,app - default url", &Config{TokenKey: "foo", TokenApp: "bar"}, false, ""},
-		{"token,app,acctid - default url", &Config{TokenKey: "foo", TokenApp: "bar", TokenAccountID: "0"}, false, ""},
-		{"token,app,url(host)", &Config{TokenKey: "foo", TokenApp: "bar", URL: "foo.example.com"}, false, ""},
-		{"token,app,url(trailing /)", &Config{TokenKey: "foo", TokenApp: "bar", URL: "foo.example.com/path/"}, false, ""},
-		{"token,app,url(w/o trailing /)", &Config{TokenKey: "foo", TokenApp: "bar", URL: "foo.example.com/path"}, false, ""},
-		{"invalid (url)", &Config{TokenKey: "foo", TokenApp: "bar", URL: `http://foo.example.com\path`}, true, `parsing Circonus API URL: parse http://foo.example.com\path: invalid character "\\" in host name`},
+		{"invalid config (nil)", nil, true},
+		{"invalid config (blank)", &Config{}, true},
+		{"token - default app/url", &Config{TokenKey: "foo"}, false},
+		{"token,app - default url", &Config{TokenKey: "foo", TokenApp: "bar"}, false},
+		{"token,app,acctid - default url", &Config{TokenKey: "foo", TokenApp: "bar", TokenAccountID: "0"}, false},
+		{"token,app,url(host)", &Config{TokenKey: "foo", TokenApp: "bar", URL: "foo.example.com"}, false},
+		{"token,app,url(trailing /)", &Config{TokenKey: "foo", TokenApp: "bar", URL: "foo.example.com/path/"}, false},
+		{"token,app,url(w/o trailing /)", &Config{TokenKey: "foo", TokenApp: "bar", URL: "foo.example.com/path"}, false},
+		{"invalid (url)", &Config{TokenKey: "foo", TokenApp: "bar", URL: `http://foo.example.com\path`}, true},
 	}
 
 	for _, test := range tests {
@@ -94,8 +93,6 @@ func TestNew(t *testing.T) {
 			if test.shouldFail {
 				if err == nil {
 					t.Fatal("expected error")
-				} else if err.Error() != test.expectedErr {
-					t.Fatalf("unexpected error (%s)", err)
 				}
 			} else {
 				if err != nil {

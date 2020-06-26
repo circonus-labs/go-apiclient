@@ -56,7 +56,7 @@ func testMetricClusterServer() *httptest.Server {
 				fmt.Fprintln(w, "")
 			default:
 				w.WriteHeader(404)
-				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, r.URL.Path))
+				fmt.Fprintf(w, "not found: %s %s\n", r.Method, r.URL.Path)
 			}
 		case "/metric_cluster":
 			switch r.Method {
@@ -89,7 +89,7 @@ func testMetricClusterServer() *httptest.Server {
 					fmt.Fprintln(w, string(ret))
 				} else {
 					w.WriteHeader(404)
-					fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, r.URL.Path))
+					fmt.Fprintf(w, "not found: %s %s\n", r.Method, r.URL.Path)
 				}
 			case "POST": // create
 				defer r.Body.Close()
@@ -102,11 +102,11 @@ func testMetricClusterServer() *httptest.Server {
 				fmt.Fprintln(w, string(b))
 			default:
 				w.WriteHeader(404)
-				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, r.URL.Path))
+				fmt.Fprintf(w, "not found: %s %s\n", r.Method, r.URL.Path)
 			}
 		default:
 			w.WriteHeader(404)
-			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, r.URL.Path))
+			fmt.Fprintf(w, "not found: %s %s\n", r.Method, r.URL.Path)
 		}
 	}
 

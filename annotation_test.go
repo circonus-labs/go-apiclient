@@ -55,7 +55,7 @@ func testAnnotationServer() *httptest.Server {
 				w.Header().Set("Content-Type", "application/json")
 			default:
 				w.WriteHeader(404)
-				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+				fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 			}
 		case "/annotation":
 			switch r.Method {
@@ -84,7 +84,7 @@ func testAnnotationServer() *httptest.Server {
 					fmt.Fprintln(w, string(ret))
 				} else {
 					w.WriteHeader(404)
-					fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, reqURL))
+					fmt.Fprintf(w, "not found: %s %s\n", r.Method, reqURL)
 				}
 			case "POST":
 				defer r.Body.Close()
@@ -101,11 +101,11 @@ func testAnnotationServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			default:
 				w.WriteHeader(404)
-				fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+				fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 			}
 		default:
 			w.WriteHeader(404)
-			fmt.Fprintln(w, fmt.Sprintf("not found: %s %s", r.Method, path))
+			fmt.Fprintf(w, "not found: %s %s\n", r.Method, path)
 		}
 	}
 
