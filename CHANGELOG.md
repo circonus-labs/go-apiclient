@@ -1,3 +1,7 @@
+# v0.7.8
+
+* add: `lookup_key` to rule_set
+
 # v0.7.7
 
 * fix: lint simplifications in tests
