@@ -1,3 +1,7 @@
+# v0.7.9
+
+* add: additional SMTP check attributes to support proxies
+
 # v0.7.8
 
 * add: `lookup_key` to rule_set
