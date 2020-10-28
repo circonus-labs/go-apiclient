@@ -41,6 +41,10 @@ var (
 )
 
 func retryCallServer() *httptest.Server {
+	gets := 0
+	puts := 0
+	posts := 0
+	deletes := 0
 	f := func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		switch path {
@@ -52,6 +56,38 @@ func retryCallServer() *httptest.Server {
 			w.WriteHeader(403)
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprintln(w, `{"reference":"abc123","explanation":"There is a problem with the application string you are trying to access the API with","server":"foo","tag":"bar","message":"App 'foobar' not allowed","code":"Forbidden.BadApp"}`)
+		case "/rate_limit":
+			ok := false
+			switch r.Method {
+			case "GET":
+				if gets > 0 {
+					ok = true
+				}
+				gets++
+			case "PUT":
+				if puts > 0 {
+					ok = true
+				}
+				puts++
+			case "POST":
+				if posts > 0 {
+					ok = true
+				}
+				posts++
+			case "DELETE":
+				if deletes > 0 {
+					ok = true
+				}
+				deletes++
+			}
+			if ok {
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprintf(w, "ok")
+				return
+			}
+			w.Header().Set("Retry-After", "11")
+			w.WriteHeader(429)
+			fmt.Fprintln(w, "rate limit")
 		default:
 			numReq++
 			if numReq > maxReq {
@@ -392,7 +428,7 @@ func TestApiDelete(t *testing.T) {
 }
 
 func TestApiRequest(t *testing.T) {
-	t.Skip()
+	// t.Skip()
 
 	server := retryCallServer()
 	defer server.Close()
@@ -457,6 +493,27 @@ func TestApiRequest(t *testing.T) {
 	}
 
 	apih.DisableExponentialBackoff()
+
+	t.Log("rate limit")
+	{
+		calls := []string{"GET", "PUT", "POST", "DELETE"}
+		for _, call := range calls {
+			t.Logf("\tTesting %d %s call(s)", 1, call)
+			numReq = 0
+			start := time.Now()
+			resp, err := apih.apiRequest(call, "/rate_limit", nil)
+			if err != nil {
+				t.Errorf("Expected no error, got '%+v'", resp)
+			}
+			elapsed := time.Since(start)
+			t.Log("\tTime: ", elapsed)
+
+			expected := "ok"
+			if string(resp) != expected {
+				t.Errorf("Expected\n'%s'\ngot\n'%s'\n", expected, resp)
+			}
+		}
+	}
 
 	t.Log("drift retry - bad token")
 	{
