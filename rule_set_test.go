@@ -15,6 +15,7 @@ import (
 )
 
 var (
+	u2          = []byte(`{"foo":"bar"}`)
 	testRuleSet = RuleSet{
 		CID:      "/rule_set/1234_tt_firstbyte",
 		CheckCID: "/check/1234",
@@ -29,6 +30,7 @@ var (
 		MetricName: "tt_firstbyte",
 		MetricType: "numeric",
 		Notes:      &[]string{"Determine if the HTTP request is taking too long to start (or is down.)  Don't fire if ping is already alerting"}[0],
+		UserJSON:   json.RawMessage(`{"foo":"bar","b2": {"bar":1},"b3":[1,2,3]}`),
 		Parent:     &[]string{"1233_ping"}[0],
 		Rules: []RuleSetRule{
 			{
@@ -65,6 +67,7 @@ var (
 		MetricName: "tt_firstbyte",
 		MetricType: "numeric",
 		Notes:      &[]string{"Determine if the HTTP request is taking too long to start (or is down.)  Don't fire if ping is already alerting"}[0],
+		UserJSON:   json.RawMessage(u2),
 		Parent:     &[]string{"1233_ping"}[0],
 		Rules: []RuleSetRule{
 			{
