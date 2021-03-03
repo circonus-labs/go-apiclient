@@ -29,7 +29,11 @@ var (
 		MetricName: "tt_firstbyte",
 		MetricType: "numeric",
 		Notes:      &[]string{"Determine if the HTTP request is taking too long to start (or is down.)  Don't fire if ping is already alerting"}[0],
-		Parent:     &[]string{"1233_ping"}[0],
+		UserData: map[string]interface{}{
+			"foo": "bar",
+			"baz": 1234,
+		},
+		Parent: &[]string{"1233_ping"}[0],
 		Rules: []RuleSetRule{
 			{
 				Criteria:          "on absence",
@@ -65,7 +69,11 @@ var (
 		MetricName: "tt_firstbyte",
 		MetricType: "numeric",
 		Notes:      &[]string{"Determine if the HTTP request is taking too long to start (or is down.)  Don't fire if ping is already alerting"}[0],
-		Parent:     &[]string{"1233_ping"}[0],
+		UserData: map[string]interface{}{
+			"foo": "bar",
+			"baz": 1234,
+		},
+		Parent: &[]string{"1233_ping"}[0],
 		Rules: []RuleSetRule{
 			{
 				Criteria:          "on absence",
