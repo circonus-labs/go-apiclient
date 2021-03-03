@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 )
@@ -428,7 +429,9 @@ func TestApiDelete(t *testing.T) {
 }
 
 func TestApiRequest(t *testing.T) {
-	// t.Skip()
+	if os.Getenv("DO_RETRY_TESTS") == "" {
+		t.Skip("Skipping retry tests - DO_RETRY_TESTS environment var not set")
+	}
 
 	server := retryCallServer()
 	defer server.Close()
