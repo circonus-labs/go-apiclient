@@ -138,7 +138,7 @@ func TestFetchAcknowledgement(t *testing.T) {
 	apih, server := acknowledgementTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -189,7 +189,7 @@ func TestUpdateAcknowledgement(t *testing.T) {
 	apih, server := acknowledgementTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *Acknowledgement
 		shouldFail  bool
@@ -223,7 +223,7 @@ func TestCreateAcknowledgement(t *testing.T) {
 	apih, server := acknowledgementTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *Acknowledgement
 		expectedType string
@@ -264,7 +264,7 @@ func TestSearchAcknowledgement(t *testing.T) {
 	search := SearchQueryType(`(notes="something")`)
 	filter := SearchFilterType(map[string][]string{"f__active": {"true"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

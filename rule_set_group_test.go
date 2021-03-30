@@ -168,7 +168,7 @@ func TestFetchRuleSetGroup(t *testing.T) {
 	apih, server := ruleSetGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -219,7 +219,7 @@ func TestUpdateRuleSetGroup(t *testing.T) {
 	apih, server := ruleSetGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *RuleSetGroup
 		expectedType string
@@ -256,7 +256,7 @@ func TestCreateRuleSetGroup(t *testing.T) {
 	apih, server := ruleSetGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *RuleSetGroup
 		expectedType string
@@ -292,7 +292,7 @@ func TestDeleteRuleSetGroup(t *testing.T) {
 	apih, server := ruleSetGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *RuleSetGroup
 		shouldFail  bool
@@ -327,7 +327,7 @@ func TestDeleteRuleSetGroupByCID(t *testing.T) {
 	apih, server := ruleSetGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cid         string
 		shouldFail  bool
@@ -367,7 +367,7 @@ func TestSearchRuleSetGroups(t *testing.T) {
 	search := SearchQueryType("web requests")
 	filter := SearchFilterType(map[string][]string{"f_tags_has": {"location:conus"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

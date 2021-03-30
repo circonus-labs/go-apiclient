@@ -558,7 +558,7 @@ func TestFetchDashboard(t *testing.T) {
 	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -615,7 +615,7 @@ func TestUpdateDashboard(t *testing.T) {
 	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *Dashboard
 		shouldFail  bool
@@ -649,7 +649,7 @@ func TestCreateDashboard(t *testing.T) {
 	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *Dashboard
 		expectedType string
@@ -685,7 +685,7 @@ func TestDeleteDashboard(t *testing.T) {
 	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *Dashboard
 		shouldFail  bool
@@ -720,7 +720,7 @@ func TestDeleteDashboardByCID(t *testing.T) {
 	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cid         string
 		shouldFail  bool
@@ -760,7 +760,7 @@ func TestSearchDashboards(t *testing.T) {
 	search := SearchQueryType("my dashboard")
 	filter := SearchFilterType(map[string][]string{"f__created_gt": {"1483639916"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

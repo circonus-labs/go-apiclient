@@ -141,7 +141,7 @@ func TestFetchAnnotation(t *testing.T) {
 	apih, server := annotationTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -192,7 +192,7 @@ func TestUpdateAnnotation(t *testing.T) {
 	apih, server := annotationTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *Annotation
 		shouldFail  bool
@@ -226,7 +226,7 @@ func TestCreateAnnotation(t *testing.T) {
 	apih, server := annotationTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *Annotation
 		expectedType string
@@ -262,7 +262,7 @@ func TestDeleteAnnotation(t *testing.T) {
 	apih, server := annotationTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *Annotation
 		shouldFail  bool
@@ -297,7 +297,7 @@ func TestDeleteAnnotationByCID(t *testing.T) {
 	apih, server := annotationTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cid         string
 		shouldFail  bool
@@ -337,7 +337,7 @@ func TestSearchAnnotations(t *testing.T) {
 	search := SearchQueryType(`(category="updates")`)
 	filter := SearchFilterType(map[string][]string{"f__created_gt": {"1483639916"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

@@ -106,7 +106,7 @@ func retryCallServer() *httptest.Server {
 
 func TestNew(t *testing.T) {
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id         string
 		cfg        *Config
 		shouldFail bool

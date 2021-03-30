@@ -176,7 +176,7 @@ func TestFetchContactGroup(t *testing.T) {
 	apih, server := contactGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -228,7 +228,7 @@ func TestUpdateContactGroup(t *testing.T) {
 	apih, server := contactGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *ContactGroup
 		shouldFail  bool
@@ -262,7 +262,7 @@ func TestCreateContactGroup(t *testing.T) {
 	apih, server := contactGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *ContactGroup
 		expectedType string
@@ -298,7 +298,7 @@ func TestDeleteContactGroup(t *testing.T) {
 	apih, server := contactGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *ContactGroup
 		shouldFail  bool
@@ -333,7 +333,7 @@ func TestDeleteContactGroupByCID(t *testing.T) {
 	apih, server := contactGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cid         string
 		shouldFail  bool
@@ -373,7 +373,7 @@ func TestSearchContactGroups(t *testing.T) {
 	search := SearchQueryType(`(name="ops")`)
 	filter := SearchFilterType(map[string][]string{"f__last_modified_gt": {"1483639916"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

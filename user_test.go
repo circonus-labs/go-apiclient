@@ -116,7 +116,7 @@ func TestFetchUser(t *testing.T) {
 	apih, server := userTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -169,7 +169,7 @@ func TestUpdateUser(t *testing.T) {
 	apih, server := userTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *User
 		expectedType string
@@ -209,7 +209,7 @@ func TestSearchUsers(t *testing.T) {
 	expectedType := "*[]apiclient.User"
 	filter := SearchFilterType(map[string][]string{"f_firstname": {"john"}, "f_lastname": {"doe"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		filter       *SearchFilterType
 		expectedType string

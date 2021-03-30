@@ -120,7 +120,7 @@ func TestFetchBroker(t *testing.T) {
 	apih, server := brokerTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -175,7 +175,7 @@ func TestSearchBrokers(t *testing.T) {
 	search := SearchQueryType("httptrap")
 	filter := SearchFilterType{"f__type": []string{"enterprise"}}
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

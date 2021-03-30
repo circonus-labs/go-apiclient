@@ -146,7 +146,7 @@ func TestFetchAccount(t *testing.T) {
 	apih, server := accountTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -199,7 +199,7 @@ func TestUpdateAccount(t *testing.T) {
 	apih, server := accountTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *Account
 		expectedType string
@@ -239,7 +239,7 @@ func TestSearchAccounts(t *testing.T) {
 	expectedType := "*[]apiclient.Account"
 	filter := SearchFilterType(map[string][]string{"f_name_wildcard": {"*ops*"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		filter       *SearchFilterType
 		expectedType string

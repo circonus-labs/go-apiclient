@@ -109,7 +109,7 @@ func TestFetchCheck(t *testing.T) {
 	apih, server := checkTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -164,7 +164,7 @@ func TestSearchChecks(t *testing.T) {
 	search := SearchQueryType("test")
 	filter := SearchFilterType{"f__tags_has": []string{"cat:tag"}}
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType
