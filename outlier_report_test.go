@@ -142,7 +142,7 @@ func TestFetchOutlierReport(t *testing.T) {
 	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -194,7 +194,7 @@ func TestUpdateOutlierReport(t *testing.T) {
 	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *OutlierReport
 		expectedType string
@@ -231,7 +231,7 @@ func TestCreateOutlierReport(t *testing.T) {
 	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *OutlierReport
 		expectedType string
@@ -267,7 +267,7 @@ func TestDeleteOutlierReport(t *testing.T) {
 	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *OutlierReport
 		shouldFail  bool
@@ -302,7 +302,7 @@ func TestDeleteOutlierReportByCID(t *testing.T) {
 	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cid         string
 		shouldFail  bool
@@ -342,7 +342,7 @@ func TestSearchOutlierReports(t *testing.T) {
 	search := SearchQueryType("requests per second")
 	filter := SearchFilterType(map[string][]string{"f_tags_has": {"service:web"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

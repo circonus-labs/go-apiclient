@@ -142,7 +142,7 @@ func TestFetchMetricCluster(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		extras       string
@@ -182,7 +182,7 @@ func TestFetchMetricClusters(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		extras       string
 		expectedType string
@@ -219,7 +219,7 @@ func TestUpdateMetricCluster(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *MetricCluster
 		expectedType string
@@ -256,7 +256,7 @@ func TestCreateMetricCluster(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *MetricCluster
 		expectedType string
@@ -292,7 +292,7 @@ func TestDeleteMetricCluster(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *MetricCluster
 		shouldFail  bool
@@ -327,7 +327,7 @@ func TestDeleteMetricClusterByCID(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cid         string
 		shouldFail  bool
@@ -367,7 +367,7 @@ func TestSearchMetricClusters(t *testing.T) {
 	search := SearchQueryType("web servers")
 	filter := SearchFilterType(map[string][]string{"f_tags_has": {"dc:sfo1"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

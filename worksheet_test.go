@@ -151,7 +151,7 @@ func TestFetchWorksheet(t *testing.T) {
 	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -203,7 +203,7 @@ func TestUpdateWorksheet(t *testing.T) {
 	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *Worksheet
 		expectedType string
@@ -240,7 +240,7 @@ func TestCreateWorksheet(t *testing.T) {
 	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *Worksheet
 		expectedType string
@@ -276,7 +276,7 @@ func TestDeleteWorksheet(t *testing.T) {
 	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *Worksheet
 		shouldFail  bool
@@ -311,7 +311,7 @@ func TestDeleteWorksheetByCID(t *testing.T) {
 	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cid         string
 		shouldFail  bool
@@ -351,7 +351,7 @@ func TestSearchWorksheets(t *testing.T) {
 	search := SearchQueryType("web servers")
 	filter := SearchFilterType(map[string][]string{"f_favorite": {"true"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

@@ -141,7 +141,7 @@ func TestFetchMaintenanceWindow(t *testing.T) {
 	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -192,7 +192,7 @@ func TestUpdateMaintenanceWindow(t *testing.T) {
 	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *Maintenance
 		expectedType string
@@ -229,7 +229,7 @@ func TestCreateMaintenanceWindow(t *testing.T) {
 	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *Maintenance
 		expectedType string
@@ -265,7 +265,7 @@ func TestDeleteMaintenanceWindow(t *testing.T) {
 	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *Maintenance
 		shouldFail  bool
@@ -300,7 +300,7 @@ func TestDeleteMaintenanceWindowByCID(t *testing.T) {
 	apih, server := maintenanceTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cid         string
 		shouldFail  bool
@@ -340,7 +340,7 @@ func TestSearchMaintenances(t *testing.T) {
 	search := SearchQueryType("/check_bundle/1234")
 	filter := SearchFilterType(map[string][]string{"f_start_gt": {"1483639916"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

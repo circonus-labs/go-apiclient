@@ -118,7 +118,7 @@ func TestFetchProvisionBroker(t *testing.T) {
 	apih, server := provisionBrokerTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -155,7 +155,7 @@ func TestUpdateProvisionBroker(t *testing.T) {
 	apih, server := provisionBrokerTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		cfg          *ProvisionBroker
@@ -194,7 +194,7 @@ func TestCreateProvisionBroker(t *testing.T) {
 	apih, server := provisionBrokerTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *ProvisionBroker
 		expectedType string

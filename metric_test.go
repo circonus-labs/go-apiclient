@@ -122,7 +122,7 @@ func TestFetchMetric(t *testing.T) {
 	apih, server := metricTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -173,7 +173,7 @@ func TestUpdateMetric(t *testing.T) {
 	apih, server := metricTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *Metric
 		expectedType string
@@ -214,7 +214,7 @@ func TestSearchMetrics(t *testing.T) {
 	search := SearchQueryType("vm`memory`used")
 	filter := SearchFilterType(map[string][]string{"f_tags_has": {"service:cache"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

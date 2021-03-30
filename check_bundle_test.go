@@ -150,7 +150,7 @@ func TestFetchCheckBundle(t *testing.T) {
 	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -201,7 +201,7 @@ func TestUpdateCheckBundle(t *testing.T) {
 	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *CheckBundle
 		shouldFail  bool
@@ -235,7 +235,7 @@ func TestCreateCheckBundle(t *testing.T) {
 	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *CheckBundle
 		expectedType string
@@ -271,7 +271,7 @@ func TestDeleteCheckBundle(t *testing.T) {
 	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *CheckBundle
 		shouldFail  bool
@@ -306,7 +306,7 @@ func TestDeleteCheckBundleByCID(t *testing.T) {
 	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cid         string
 		shouldFail  bool
@@ -346,7 +346,7 @@ func TestSearchCheckBundles(t *testing.T) {
 	search := SearchQueryType("test")
 	filter := SearchFilterType(map[string][]string{"f__tags_has": {"cat:tag"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

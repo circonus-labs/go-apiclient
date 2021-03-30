@@ -177,7 +177,7 @@ func TestFetchGraph(t *testing.T) {
 	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -228,7 +228,7 @@ func TestUpdateGraph(t *testing.T) {
 	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *Graph
 		shouldFail  bool
@@ -262,7 +262,7 @@ func TestCreateGraph(t *testing.T) {
 	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *Graph
 		expectedType string
@@ -298,7 +298,7 @@ func TestDeleteGraph(t *testing.T) {
 	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *Graph
 		shouldFail  bool
@@ -333,7 +333,7 @@ func TestDeleteGraphByCID(t *testing.T) {
 	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cid         string
 		shouldFail  bool
@@ -373,7 +373,7 @@ func TestSearchGraphs(t *testing.T) {
 	search := SearchQueryType("CPU Utilization")
 	filter := SearchFilterType(map[string][]string{"f__tags_has": {"os:rhel7"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType
@@ -417,7 +417,7 @@ func TestGraphOverlaySet(t *testing.T) {
 	}
 
 	var g Graph
-	if err := json.Unmarshal(testJSON, &g); err != nil {
+	if err = json.Unmarshal(testJSON, &g); err != nil {
 		t.Fatal(err)
 	}
 

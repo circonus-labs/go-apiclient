@@ -118,7 +118,7 @@ func TestFetchAlert(t *testing.T) {
 	apih, server := alertTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -173,7 +173,7 @@ func TestSearchAlerts(t *testing.T) {
 	search := SearchQueryType(`(host="somehost.example.com")`)
 	filter := SearchFilterType(map[string][]string{"f__cleared_on": {"null"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

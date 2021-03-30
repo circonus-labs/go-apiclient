@@ -228,7 +228,7 @@ func TestFetchRuleSet(t *testing.T) {
 	apih, server := ruleSetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -281,7 +281,7 @@ func TestUpdateRuleSet(t *testing.T) {
 	apih, server := ruleSetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *RuleSet
 		expectedType string
@@ -319,7 +319,7 @@ func TestCreateRuleSet(t *testing.T) {
 	apih, server := ruleSetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cfg          *RuleSet
 		expectedType string
@@ -356,7 +356,7 @@ func TestDeleteRuleSet(t *testing.T) {
 	apih, server := ruleSetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *RuleSet
 		shouldFail  bool
@@ -392,7 +392,7 @@ func TestDeleteRuleSetByCID(t *testing.T) {
 	apih, server := ruleSetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cid         string
 		shouldFail  bool
@@ -434,7 +434,7 @@ func TestSearchRuleSets(t *testing.T) {
 	search := SearchQueryType("request`latency_ms")
 	filter := SearchFilterType(map[string][]string{"f_tags_has": {"service:web"}})
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		search       *SearchQueryType
 		filter       *SearchFilterType

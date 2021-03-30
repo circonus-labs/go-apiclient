@@ -84,7 +84,7 @@ func TestFetchCheckBundleMetrics(t *testing.T) {
 	apih, server := checkBundleMetricsTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id           string
 		cid          string
 		expectedType string
@@ -121,7 +121,7 @@ func TestUpdateCheckBundleMetrics(t *testing.T) {
 	apih, server := checkBundleMetricsTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		id          string
 		cfg         *CheckBundleMetrics
 		shouldFail  bool
