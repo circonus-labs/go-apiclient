@@ -1,3 +1,7 @@
+# v0.7.13
+
+* upd: dependencies
+
 # v0.7.12
 
 * fix: lint issues
