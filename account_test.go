@@ -54,6 +54,8 @@ var (
 				UserCID: "/user/42",
 			},
 		},
+		DefaultDashboardUUID: &[]string{"11223344-5566-7788-9900-aabbccddeeff"}[0],
+		DefaultDashboardType: &[]string{"custom"}[0],
 	}
 )
 
