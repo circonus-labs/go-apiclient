@@ -187,7 +187,7 @@ func New(ac *Config) (*API, error) {
 	}
 
 	a.maxRetries = maxRetries
-	if ac.MaxRetries > 0 {
+	if ac.MaxRetries >= 0 {
 		a.maxRetries = ac.MaxRetries
 	}
 	a.minRetryDelay = minRetryWait
