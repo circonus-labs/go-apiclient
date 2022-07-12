@@ -1,7 +1,7 @@
 # v0.7.17
 
-* upd: Allows MaxRetries configuration setting to be set to 0. This allows
-retry functionality to be disabled if desired.
+* upd: Implements a new DisableRetries configuration setting to allow the
+retry functionality to be disabled when needed.
 
 # v0.7.16
 
