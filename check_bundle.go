@@ -288,6 +288,10 @@ func fixTags(tags []string) []string {
 		if tag == "" {
 			continue
 		}
+
+		// lowercase
+		tag = strings.ToLower(tag)
+
 		// remove duplicates
 		if _, found := unique[tag]; !found {
 			unique[tag] = true
