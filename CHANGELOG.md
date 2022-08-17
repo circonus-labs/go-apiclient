@@ -1,3 +1,15 @@
+# v0.7.17
+
+* upd: Implements a new DisableRetries configuration setting to allow the
+retry functionality to be disabled when needed.
+
+# v0.7.16
+
+* upd: Adds the `default_dashboard_uuid` and `default_dashboard_type` optional
+fields to the Account type. And, removes the `account_default` field from the
+Dashboard type. This is to reflect the changes made to the dashboard defaulting
+process in the Circonus API.
+
 # v0.7.15
 
 * fix: do not allow blank tags through on check bundle creation

@@ -26,7 +26,6 @@ var jsondash = `{
   "_created_by": "/user/1234",
   "_dashboard_uuid": "01234567-89ab-cdef-0123-456789abcdef",
   "_last_modified": 1483450351,
-  "account_default": false,
   "grid_layout": {
     "height": 4,
     "width": 4
