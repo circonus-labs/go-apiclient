@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.13
+//go:build go1.17
+// +build go1.17
 
 package apiclient
 
@@ -13,7 +14,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math"
 	"math/big"
@@ -182,7 +183,7 @@ func New(ac *Config) (*API, error) {
 		a.Log = log.New(os.Stdout, "", log.LstdFlags)
 	}
 	if a.Log == nil {
-		a.Log = log.New(ioutil.Discard, "", log.LstdFlags)
+		a.Log = log.New(io.Discard, "", log.LstdFlags)
 	}
 
 	a.maxRetries = maxRetries
@@ -332,7 +333,7 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 		if resp.StatusCode == 0 || // wtf?!
 			resp.StatusCode >= 500 || // rutroh
 			resp.StatusCode == 429 { // rate limit
-			body, readErr := ioutil.ReadAll(resp.Body)
+			body, readErr := io.ReadAll(resp.Body)
 			if readErr != nil {
 				lastHTTPError = errors.Errorf("- response: %d %s", resp.StatusCode, readErr.Error())
 			} else {
@@ -416,7 +417,7 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 	if a.Debug {
 		client.Logger = a.Log
 	} else {
-		client.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
+		client.Logger = log.New(io.Discard, "", log.LstdFlags)
 	}
 
 	client.CheckRetry = retryPolicy
@@ -430,7 +431,7 @@ func (a *API) apiCall(reqMethod string, reqPath string, data []byte) ([]byte, er
 	}
 
 	defer resp.Body.Close() // nolint: errcheck
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading Circonus API response")
 	}
