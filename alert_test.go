@@ -118,16 +118,32 @@ func TestFetchAlert(t *testing.T) {
 	apih, server := alertTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid alert CID (none)"},
-		{"short cid", "1234", "*apiclient.Alert", false, ""},
-		{"long cid", "/alert/1234", "*apiclient.Alert", false, ""},
+		{
+			id:           "empty cid",
+			cid:          "",
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid alert CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "1234",
+			expectedType: "*apiclient.Alert",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/alert/1234",
+			expectedType: "*apiclient.Alert",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -173,18 +189,42 @@ func TestSearchAlerts(t *testing.T) {
 	search := SearchQueryType(`(host="somehost.example.com")`)
 	filter := SearchFilterType(map[string][]string{"f__cleared_on": {"null"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			search:       nil,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "search no filter",
+			search:       &search,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter no search",
+			search:       nil,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

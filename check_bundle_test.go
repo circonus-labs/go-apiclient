@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -48,7 +48,7 @@ func testCheckBundleServer() *httptest.Server {
 			switch r.Method {
 			case "PUT": // update
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -101,7 +101,7 @@ func testCheckBundleServer() *httptest.Server {
 				}
 			case "POST": // create
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -150,16 +150,32 @@ func TestFetchCheckBundle(t *testing.T) {
 	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid check bundle CID (none)"},
-		{"short cid", "1234", "*apiclient.CheckBundle", false, ""},
-		{"long cid", "/check_bundle/1234", "*apiclient.CheckBundle", false, ""},
+		{
+			id:           "empty cid",
+			cid:          "",
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid check bundle CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "1234",
+			expectedType: "*apiclient.CheckBundle",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/check_bundle/1234",
+			expectedType: "*apiclient.CheckBundle",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -201,15 +217,29 @@ func TestUpdateCheckBundle(t *testing.T) {
 	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *CheckBundle
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid check bundle config (nil)"},
-		{"invalid (cid)", &CheckBundle{CID: "/invalid"}, true, "invalid check bundle CID (/invalid)"},
-		{"valid", &testCheckBundle, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid check bundle config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &CheckBundle{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid check bundle CID (/invalid)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testCheckBundle,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -235,15 +265,26 @@ func TestCreateCheckBundle(t *testing.T) {
 	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *CheckBundle
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid check bundle config (nil)"},
-		{"valid", &testCheckBundle, "*apiclient.CheckBundle", false, ""},
+		{
+			id:           "invalid (nil)",
+			cfg:          nil,
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid check bundle config (nil)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testCheckBundle,
+			expectedType: "*apiclient.CheckBundle",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -271,14 +312,23 @@ func TestDeleteCheckBundle(t *testing.T) {
 	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *CheckBundle
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid check bundle config (nil)"},
-		{"valid", &testCheckBundle, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid check bundle config (nil)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testCheckBundle,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -306,15 +356,28 @@ func TestDeleteCheckBundleByCID(t *testing.T) {
 	apih, server := checkBundleTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id          string
 		cid         string
-		shouldFail  bool
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"empty cid", "", true, "invalid check bundle CID (none)"},
-		{"short cid", "1234", false, ""},
-		{"long cid", "/check_bundle/1234", false, ""},
+		{
+			id:          "empty cid",
+			cid:         "",
+			shouldFail:  true,
+			expectedErr: "invalid check bundle CID (none)",
+		},
+		{
+			id:         "short cid",
+			cid:        "1234",
+			shouldFail: false,
+		},
+		{
+			id:         "long cid",
+			cid:        "/check_bundle/1234",
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -346,18 +409,42 @@ func TestSearchCheckBundles(t *testing.T) {
 	search := SearchQueryType("test")
 	filter := SearchFilterType(map[string][]string{"f__tags_has": {"cat:tag"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			search:       nil,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "search no filter",
+			search:       &search,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter no search",
+			search:       nil,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

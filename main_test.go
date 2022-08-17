@@ -106,20 +106,81 @@ func retryCallServer() *httptest.Server {
 
 func TestNew(t *testing.T) {
 
-	tests := []struct { //nolint:govet
-		id         string
+	tests := []struct {
 		cfg        *Config
+		id         string
 		shouldFail bool
 	}{
-		{"invalid config (nil)", nil, true},
-		{"invalid config (blank)", &Config{}, true},
-		{"token - default app/url", &Config{TokenKey: "foo"}, false},
-		{"token,app - default url", &Config{TokenKey: "foo", TokenApp: "bar"}, false},
-		{"token,app,acctid - default url", &Config{TokenKey: "foo", TokenApp: "bar", TokenAccountID: "0"}, false},
-		{"token,app,url(host)", &Config{TokenKey: "foo", TokenApp: "bar", URL: "foo.example.com"}, false},
-		{"token,app,url(trailing /)", &Config{TokenKey: "foo", TokenApp: "bar", URL: "foo.example.com/path/"}, false},
-		{"token,app,url(w/o trailing /)", &Config{TokenKey: "foo", TokenApp: "bar", URL: "foo.example.com/path"}, false},
-		{"invalid (url)", &Config{TokenKey: "foo", TokenApp: "bar", URL: `http://foo.example.com\path`}, true},
+		{
+			id:         "invalid config (nil)",
+			cfg:        nil,
+			shouldFail: true,
+		},
+		{
+			id:         "invalid config (blank)",
+			cfg:        &Config{},
+			shouldFail: true,
+		},
+		{
+			id: "token - default app/url",
+			cfg: &Config{
+				TokenKey: "foo",
+			},
+			shouldFail: false,
+		},
+		{
+			id: "token,app - default url",
+			cfg: &Config{
+				TokenKey: "foo",
+				TokenApp: "bar",
+			},
+			shouldFail: false,
+		},
+		{
+			id: "token,app,acctid - default url",
+			cfg: &Config{
+				TokenKey:       "foo",
+				TokenApp:       "bar",
+				TokenAccountID: "0",
+			},
+			shouldFail: false,
+		},
+		{
+			id: "token,app,url(host)",
+			cfg: &Config{
+				TokenKey: "foo",
+				TokenApp: "bar",
+				URL:      "foo.example.com",
+			},
+			shouldFail: false,
+		},
+		{
+			id: "token,app,url(trailing /)",
+			cfg: &Config{
+				TokenKey: "foo",
+				TokenApp: "bar",
+				URL:      "foo.example.com/path/",
+			},
+			shouldFail: false,
+		},
+		{
+			id: "token,app,url(w/o trailing /)",
+			cfg: &Config{
+				TokenKey: "foo",
+				TokenApp: "bar",
+				URL:      "foo.example.com/path",
+			},
+			shouldFail: false,
+		},
+		{
+			id: "invalid (url)",
+			cfg: &Config{
+				TokenKey: "foo",
+				TokenApp: "bar",
+				URL:      `http://foo.example.com\path`,
+			},
+			shouldFail: true,
+		},
 	}
 
 	for _, test := range tests {

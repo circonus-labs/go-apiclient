@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -104,7 +104,7 @@ func testRuleSetServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -130,7 +130,7 @@ func testRuleSetServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -175,7 +175,7 @@ func testRuleSetServer() *httptest.Server {
 				}
 			case "POST":
 				defer r.Body.Close()
-				_, err := ioutil.ReadAll(r.Body)
+				_, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -228,18 +228,42 @@ func TestFetchRuleSet(t *testing.T) {
 	apih, server := ruleSetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid rule set CID (none)"},
-		{"short (old) cid", "1234_tt_firstbyte", "*apiclient.RuleSet", false, ""},
-		{"long (old) cid", "/rule_set/1234_tt_firstbyte", "*apiclient.RuleSet", false, ""},
-		{"short (new) cid", "1234", "*apiclient.RuleSet", false, ""},
-		{"long (new) cid", "/rule_set/1234", "*apiclient.RuleSet", false, ""},
+		{
+			id:          "empty cid",
+			shouldFail:  true,
+			expectedErr: "invalid rule set CID (none)",
+		},
+		{
+			id:           "short (old) cid",
+			cid:          "1234_tt_firstbyte",
+			expectedType: "*apiclient.RuleSet",
+			shouldFail:   false,
+		},
+		{
+			id:           "long (old) cid",
+			cid:          "/rule_set/1234_tt_firstbyte",
+			expectedType: "*apiclient.RuleSet",
+			shouldFail:   false,
+		},
+		{
+			id:           "short (new) cid",
+			cid:          "1234",
+			expectedType: "*apiclient.RuleSet",
+			shouldFail:   false,
+		},
+		{
+			id:           "long (new) cid",
+			cid:          "/rule_set/1234",
+			expectedType: "*apiclient.RuleSet",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -281,17 +305,36 @@ func TestUpdateRuleSet(t *testing.T) {
 	apih, server := ruleSetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *RuleSet
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid rule set config (nil)"},
-		{"invalid (cid)", &RuleSet{CID: "/invalid"}, "", true, "invalid rule set CID (/invalid)"},
-		{"valid", &testRuleSet, "*apiclient.RuleSet", false, ""},
-		{"valid", &testRuleSetNewCID, "*apiclient.RuleSet", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid rule set config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &RuleSet{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid rule set CID (/invalid)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testRuleSet,
+			expectedType: "*apiclient.RuleSet",
+			shouldFail:   false,
+		},
+		{
+			id:           "valid",
+			cfg:          &testRuleSetNewCID,
+			expectedType: "*apiclient.RuleSet",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -319,16 +362,30 @@ func TestCreateRuleSet(t *testing.T) {
 	apih, server := ruleSetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *RuleSet
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid rule set config (nil)"},
-		{"valid", &testRuleSet, "*apiclient.RuleSet", false, ""},
-		{"valid", &testRuleSetNewCID, "*apiclient.RuleSet", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid rule set config (nil)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testRuleSet,
+			expectedType: "*apiclient.RuleSet",
+			shouldFail:   false,
+		},
+		{
+			id:           "valid",
+			cfg:          &testRuleSetNewCID,
+			expectedType: "*apiclient.RuleSet",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -356,15 +413,27 @@ func TestDeleteRuleSet(t *testing.T) {
 	apih, server := ruleSetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *RuleSet
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid rule set config (nil)"},
-		{"valid", &testRuleSet, false, ""},
-		{"valid", &testRuleSetNewCID, false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid rule set config (nil)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testRuleSet,
+			shouldFail: false,
+		},
+		{
+			id:         "valid",
+			cfg:        &testRuleSetNewCID,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -392,17 +461,37 @@ func TestDeleteRuleSetByCID(t *testing.T) {
 	apih, server := ruleSetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id          string
 		cid         string
-		shouldFail  bool
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"empty cid", "", true, "invalid rule set CID (none)"},
-		{"short (old) cid", "1234_tt_firstbyte", false, ""},
-		{"long (old) cid", "/rule_set/1234_tt_firstbyte", false, ""},
-		{"short (new) cid", "1234", false, ""},
-		{"long (new) cid", "/rule_set/1234", false, ""},
+		{
+			id:          "empty cid",
+			shouldFail:  true,
+			expectedErr: "invalid rule set CID (none)",
+		},
+		{
+			id:         "short (old) cid",
+			cid:        "1234_tt_firstbyte",
+			shouldFail: false,
+		},
+		{
+			id:         "long (old) cid",
+			cid:        "/rule_set/1234_tt_firstbyte",
+			shouldFail: false,
+		},
+		{
+			id:         "short (new) cid",
+			cid:        "1234",
+			shouldFail: false,
+		},
+		{
+			id:         "long (new) cid",
+			cid:        "/rule_set/1234",
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -434,18 +523,38 @@ func TestSearchRuleSets(t *testing.T) {
 	search := SearchQueryType("request`latency_ms")
 	filter := SearchFilterType(map[string][]string{"f_tags_has": {"service:web"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "search no filter",
+			search:       &search,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter no search",
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

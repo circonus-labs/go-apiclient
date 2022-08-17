@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -70,7 +70,7 @@ func testRuleSetGroupServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -115,7 +115,7 @@ func testRuleSetGroupServer() *httptest.Server {
 				}
 			case "POST":
 				defer r.Body.Close()
-				_, err := ioutil.ReadAll(r.Body)
+				_, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -168,16 +168,30 @@ func TestFetchRuleSetGroup(t *testing.T) {
 	apih, server := ruleSetGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid rule set group CID (none)"},
-		{"short cid", "1234", "*apiclient.RuleSetGroup", false, ""},
-		{"long cid", "/rule_set_group/1234", "*apiclient.RuleSetGroup", false, ""},
+		{
+			id:          "empty cid",
+			shouldFail:  true,
+			expectedErr: "invalid rule set group CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "1234",
+			expectedType: "*apiclient.RuleSetGroup",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/rule_set_group/1234",
+			expectedType: "*apiclient.RuleSetGroup",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -219,16 +233,30 @@ func TestUpdateRuleSetGroup(t *testing.T) {
 	apih, server := ruleSetGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *RuleSetGroup
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid rule set group config (nil)"},
-		{"invalid (cid)", &RuleSetGroup{CID: "/invalid"}, "", true, "invalid rule set group CID (/invalid)"},
-		{"valid", &testRuleSetGroup, "*apiclient.RuleSetGroup", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid rule set group config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &RuleSetGroup{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid rule set group CID (/invalid)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testRuleSetGroup,
+			expectedType: "*apiclient.RuleSetGroup",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -256,15 +284,24 @@ func TestCreateRuleSetGroup(t *testing.T) {
 	apih, server := ruleSetGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *RuleSetGroup
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid rule set group config (nil)"},
-		{"valid", &testRuleSetGroup, "*apiclient.RuleSetGroup", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid rule set group config (nil)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testRuleSetGroup,
+			expectedType: "*apiclient.RuleSetGroup",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -292,14 +329,22 @@ func TestDeleteRuleSetGroup(t *testing.T) {
 	apih, server := ruleSetGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *RuleSetGroup
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid rule set group config (nil)"},
-		{"valid", &testRuleSetGroup, false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid rule set group config (nil)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testRuleSetGroup,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -327,15 +372,27 @@ func TestDeleteRuleSetGroupByCID(t *testing.T) {
 	apih, server := ruleSetGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id          string
 		cid         string
-		shouldFail  bool
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"empty cid", "", true, "invalid rule set group CID (none)"},
-		{"short cid", "1234", false, ""},
-		{"long cid", "/rule_set_group/1234", false, ""},
+		{
+			id:          "empty cid",
+			shouldFail:  true,
+			expectedErr: "invalid rule set group CID (none)",
+		},
+		{
+			id:         "short cid",
+			cid:        "1234",
+			shouldFail: false,
+		},
+		{
+			id:         "long cid",
+			cid:        "/rule_set_group/1234",
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -367,18 +424,38 @@ func TestSearchRuleSetGroups(t *testing.T) {
 	search := SearchQueryType("web requests")
 	filter := SearchFilterType(map[string][]string{"f_tags_has": {"location:conus"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "search no filter",
+			search:       &search,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter no search",
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

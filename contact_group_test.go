@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -79,7 +79,7 @@ func testContactGroupServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -124,7 +124,7 @@ func testContactGroupServer() *httptest.Server {
 				}
 			case "POST":
 				defer r.Body.Close()
-				_, err := ioutil.ReadAll(r.Body)
+				_, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -176,16 +176,32 @@ func TestFetchContactGroup(t *testing.T) {
 	apih, server := contactGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid contact group CID (none)"},
-		{"short cid", "1234", "*apiclient.ContactGroup", false, ""},
-		{"long cid", "/contact_group/1234", "*apiclient.ContactGroup", false, ""},
+		{
+			id:           "empty cid",
+			cid:          "",
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid contact group CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "1234",
+			expectedType: "*apiclient.ContactGroup",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/contact_group/1234",
+			expectedType: "*apiclient.ContactGroup",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -228,15 +244,29 @@ func TestUpdateContactGroup(t *testing.T) {
 	apih, server := contactGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *ContactGroup
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid contact group config (nil)"},
-		{"invalid (cid)", &ContactGroup{CID: "/invalid"}, true, "invalid contact group CID (/invalid)"},
-		{"valid", &testContactGroup, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid contact group config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &ContactGroup{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid contact group CID (/invalid)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testContactGroup,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -262,15 +292,26 @@ func TestCreateContactGroup(t *testing.T) {
 	apih, server := contactGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *ContactGroup
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid contact group config (nil)"},
-		{"valid", &testContactGroup, "*apiclient.ContactGroup", false, ""},
+		{
+			id:           "invalid (nil)",
+			cfg:          nil,
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid contact group config (nil)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testContactGroup,
+			expectedType: "*apiclient.ContactGroup",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -298,14 +339,23 @@ func TestDeleteContactGroup(t *testing.T) {
 	apih, server := contactGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *ContactGroup
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid contact group config (nil)"},
-		{"valid", &testContactGroup, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid contact group config (nil)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testContactGroup,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -333,15 +383,28 @@ func TestDeleteContactGroupByCID(t *testing.T) {
 	apih, server := contactGroupTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id          string
 		cid         string
-		shouldFail  bool
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"empty cid", "", true, "invalid contact group CID (none)"},
-		{"short cid", "1234", false, ""},
-		{"long cid", "/contact_group/1234", false, ""},
+		{
+			id:          "empty cid",
+			cid:         "",
+			shouldFail:  true,
+			expectedErr: "invalid contact group CID (none)",
+		},
+		{
+			id:         "short cid",
+			cid:        "1234",
+			shouldFail: false,
+		},
+		{
+			id:         "long cid",
+			cid:        "/contact_group/1234",
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -373,18 +436,42 @@ func TestSearchContactGroups(t *testing.T) {
 	search := SearchQueryType(`(name="ops")`)
 	filter := SearchFilterType(map[string][]string{"f__last_modified_gt": {"1483639916"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			search:       nil,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:          "search no filter",
+			search:      &search,
+			filter:      nil,
+			expectedErr: expectedType,
+			shouldFail:  false,
+		},
+		{
+			id:           "filter no search",
+			search:       nil,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

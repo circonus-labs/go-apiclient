@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -44,7 +44,7 @@ func testOutlierReportServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -89,7 +89,7 @@ func testOutlierReportServer() *httptest.Server {
 				}
 			case "POST":
 				defer r.Body.Close()
-				_, err := ioutil.ReadAll(r.Body)
+				_, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -142,16 +142,30 @@ func TestFetchOutlierReport(t *testing.T) {
 	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid outlier report CID (none)"},
-		{"short cid", "1234", "*apiclient.OutlierReport", false, ""},
-		{"long cid", "/outlier_report/1234", "*apiclient.OutlierReport", false, ""},
+		{
+			id:          "empty cid",
+			shouldFail:  true,
+			expectedErr: "invalid outlier report CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "1234",
+			expectedType: "*apiclient.OutlierReport",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/outlier_report/1234",
+			expectedType: "*apiclient.OutlierReport",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -194,16 +208,30 @@ func TestUpdateOutlierReport(t *testing.T) {
 	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *OutlierReport
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid outlier report config (nil)"},
-		{"invalid (cid)", &OutlierReport{CID: "/invalid"}, "", true, "invalid outlier report CID (/invalid)"},
-		{"valid", &testOutlierReport, "*apiclient.OutlierReport", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid outlier report config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &OutlierReport{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid outlier report CID (/invalid)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testOutlierReport,
+			expectedType: "*apiclient.OutlierReport",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -231,15 +259,24 @@ func TestCreateOutlierReport(t *testing.T) {
 	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *OutlierReport
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid outlier report config (nil)"},
-		{"valid", &testOutlierReport, "*apiclient.OutlierReport", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid outlier report config (nil)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testOutlierReport,
+			expectedType: "*apiclient.OutlierReport",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -267,14 +304,22 @@ func TestDeleteOutlierReport(t *testing.T) {
 	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *OutlierReport
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid outlier report config (nil)"},
-		{"valid", &testOutlierReport, false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid outlier report config (nil)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testOutlierReport,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -302,15 +347,27 @@ func TestDeleteOutlierReportByCID(t *testing.T) {
 	apih, server := outlierReportTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id          string
 		cid         string
-		shouldFail  bool
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"empty cid", "", true, "invalid outlier report CID (none)"},
-		{"short cid", "1234", false, ""},
-		{"long cid", "/outlier_report/1234", false, ""},
+		{
+			id:          "empty cid",
+			shouldFail:  true,
+			expectedErr: "invalid outlier report CID (none)",
+		},
+		{
+			id:         "short cid",
+			cid:        "1234",
+			shouldFail: false,
+		},
+		{
+			id:         "long cid",
+			cid:        "/outlier_report/1234",
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -342,18 +399,38 @@ func TestSearchOutlierReports(t *testing.T) {
 	search := SearchQueryType("requests per second")
 	filter := SearchFilterType(map[string][]string{"f_tags_has": {"service:web"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "search no filter",
+			search:       &search,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter no search",
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
