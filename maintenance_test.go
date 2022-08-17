@@ -160,10 +160,10 @@ func TestFetchMaintenanceWindow(t *testing.T) {
 			shouldFail:   false,
 		},
 		{
-			id:          "long cid",
-			cid:         "/maintenance/1234",
-			expectedErr: "*apiclient.Maintenance",
-			shouldFail:  false,
+			id:           "long cid",
+			cid:          "/maintenance/1234",
+			expectedType: "*apiclient.Maintenance",
+			shouldFail:   false,
 		},
 	}
 

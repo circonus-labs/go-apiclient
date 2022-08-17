@@ -162,10 +162,10 @@ func TestFetchAnnotation(t *testing.T) {
 			shouldFail:   false,
 		},
 		{
-			id:          "long cid",
-			cid:         "/annotation/1234",
-			expectedErr: "*apiclient.Annotation",
-			shouldFail:  false,
+			id:           "long cid",
+			cid:          "/annotation/1234",
+			expectedType: "*apiclient.Annotation",
+			shouldFail:   false,
 		},
 	}
 

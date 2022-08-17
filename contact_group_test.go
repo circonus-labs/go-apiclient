@@ -452,11 +452,11 @@ func TestSearchContactGroups(t *testing.T) {
 			shouldFail:   false,
 		},
 		{
-			id:          "search no filter",
-			search:      &search,
-			filter:      nil,
-			expectedErr: expectedType,
-			shouldFail:  false,
+			id:           "search no filter",
+			search:       &search,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
 		},
 		{
 			id:           "filter no search",

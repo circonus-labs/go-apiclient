@@ -191,15 +191,15 @@ func TestUpdateUser(t *testing.T) {
 		shouldFail   bool
 	}{
 		{
-			id:           "invalid (nil)",
-			shouldFail:   true,
-			expectedType: "invalid user config (nil)",
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid user config (nil)",
 		},
 		{
-			id:           "invalid (cid)",
-			cfg:          &User{CID: "/invalid"},
-			shouldFail:   true,
-			expectedType: "invalid user CID (/invalid)",
+			id:          "invalid (cid)",
+			cfg:         &User{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid user CID (/invalid)",
 		},
 		{
 			id:           "valid",
