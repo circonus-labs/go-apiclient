@@ -1,6 +1,6 @@
 # v0.7.18
 
-* feat: clean tags - remove blanks and duplicates, and sort
+* feat: clean tags - remove blanks and duplicates, lowercase, and sort
 * fix: debug messages
 * fix(lint): ioutil deprecation
 * fix(lint): gofmt
