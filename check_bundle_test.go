@@ -467,3 +467,44 @@ func TestSearchCheckBundles(t *testing.T) {
 		})
 	}
 }
+
+func Test_fixTags(t *testing.T) {
+	tests := []struct {
+		name string
+		tags []string
+		want []string
+	}{
+		{
+			name: "blank",
+			tags: []string{"foo", ""},
+			want: []string{"foo"},
+		},
+		{
+			name: "duplicate",
+			tags: []string{"foo", "foo"},
+			want: []string{"foo"},
+		},
+		{
+			name: "lowercase",
+			tags: []string{"Foo"},
+			want: []string{"foo"},
+		},
+		{
+			name: "combo1",
+			tags: []string{"FOO", "foo", ""},
+			want: []string{"foo"},
+		},
+		{
+			name: "combo2",
+			tags: []string{"FOO:BAR", "foo", ""},
+			want: []string{"foo", "foo:bar"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := fixTags(tt.tags); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("fixTags() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
