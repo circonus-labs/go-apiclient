@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -43,7 +43,7 @@ func testAcknowledgementServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -85,7 +85,7 @@ func testAcknowledgementServer() *httptest.Server {
 				}
 			case "POST":
 				defer r.Body.Close()
-				_, err := ioutil.ReadAll(r.Body)
+				_, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -138,16 +138,32 @@ func TestFetchAcknowledgement(t *testing.T) {
 	apih, server := acknowledgementTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (empty cid)", "", "", true, "invalid acknowledgement CID (none)"},
-		{"valid (short cid)", "1234", "*apiclient.Acknowledgement", false, ""},
-		{"valid (long cid)", "/acknowledgement/1234", "*apiclient.Acknowledgement", false, ""},
+		{
+			id:           "invalid (empty cid)",
+			cid:          "",
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid acknowledgement CID (none)",
+		},
+		{
+			id:           "valid (short cid)",
+			cid:          "1234",
+			expectedType: "*apiclient.Acknowledgement",
+			shouldFail:   false,
+		},
+		{
+			id:           "valid (long cid)",
+			cid:          "/acknowledgement/1234",
+			expectedType: "*apiclient.Acknowledgement",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -189,15 +205,29 @@ func TestUpdateAcknowledgement(t *testing.T) {
 	apih, server := acknowledgementTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *Acknowledgement
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid acknowledgement config (nil)"},
-		{"invalid (cid)", &Acknowledgement{CID: "/invalid"}, true, "invalid acknowledgement CID (/invalid)"},
-		{"valid", &testAcknowledgement, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid acknowledgement config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &Acknowledgement{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid acknowledgement CID (/invalid)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testAcknowledgement,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -223,16 +253,33 @@ func TestCreateAcknowledgement(t *testing.T) {
 	apih, server := acknowledgementTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *Acknowledgement
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid acknowledgement config (nil)"},
-		{"invalid (cid)", &Acknowledgement{CID: "/invalid"}, "", true, "invalid acknowledgement CID (/invalid)"},
-		{"valid", &testAcknowledgement, "*apiclient.Acknowledgement", false, ""},
+		{
+			id:           "invalid (nil)",
+			cfg:          nil,
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid acknowledgement config (nil)",
+		},
+		{
+			id:           "invalid (cid)",
+			cfg:          &Acknowledgement{CID: "/invalid"},
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid acknowledgement CID (/invalid)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testAcknowledgement,
+			expectedType: "*apiclient.Acknowledgement",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -264,18 +311,42 @@ func TestSearchAcknowledgement(t *testing.T) {
 	search := SearchQueryType(`(notes="something")`)
 	filter := SearchFilterType(map[string][]string{"f__active": {"true"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			search:       nil,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "search no filter",
+			search:       &search,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter no search",
+			search:       nil,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

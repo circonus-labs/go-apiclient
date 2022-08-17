@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -42,7 +42,7 @@ func testCheckBundleMetricsServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -84,16 +84,32 @@ func TestFetchCheckBundleMetrics(t *testing.T) {
 	apih, server := checkBundleMetricsTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid check bundle metrics CID (none)"},
-		{"short cid", "1234", "*apiclient.CheckBundleMetrics", false, ""},
-		{"long cid", "/check_bundle_metrics/1234", "*apiclient.CheckBundleMetrics", false, ""},
+		{
+			id:           "empty cid",
+			cid:          "",
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid check bundle metrics CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "1234",
+			expectedType: "*apiclient.CheckBundleMetrics",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/check_bundle_metrics/1234",
+			expectedType: "*apiclient.CheckBundleMetrics",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -121,15 +137,29 @@ func TestUpdateCheckBundleMetrics(t *testing.T) {
 	apih, server := checkBundleMetricsTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *CheckBundleMetrics
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid check bundle metrics config (nil)"},
-		{"invalid (cid)", &CheckBundleMetrics{CID: "/invalid"}, true, "invalid check bundle metrics CID (/invalid)"},
-		{"valid", &testCheckBundleMetrics, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid check bundle metrics config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &CheckBundleMetrics{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid check bundle metrics CID (/invalid)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testCheckBundleMetrics,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {

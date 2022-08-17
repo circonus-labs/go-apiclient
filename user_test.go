@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -45,7 +45,7 @@ func testUserServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -116,16 +116,30 @@ func TestFetchUser(t *testing.T) {
 	apih, server := userTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"valid (default,empty)", "", "*apiclient.User", false, ""},
-		{"valid (short cid)", "1234", "*apiclient.User", false, ""},
-		{"valid (long cid)", "/user/1234", "*apiclient.User", false, ""},
+		{
+			id:           "valid (default,empty)",
+			expectedType: "*apiclient.User",
+			shouldFail:   false,
+		},
+		{
+			id:           "valid (short cid)",
+			cid:          "1234",
+			expectedType: "*apiclient.User",
+			shouldFail:   false,
+		},
+		{
+			id:           "valid (long cid)",
+			cid:          "/user/1234",
+			expectedType: "*apiclient.User",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -169,16 +183,30 @@ func TestUpdateUser(t *testing.T) {
 	apih, server := userTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *User
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid user config (nil)"},
-		{"invalid (cid)", &User{CID: "/invalid"}, "", true, "invalid user CID (/invalid)"},
-		{"valid", &testUser, "*apiclient.User", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid user config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &User{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid user CID (/invalid)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testUser,
+			expectedType: "*apiclient.User",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -209,15 +237,24 @@ func TestSearchUsers(t *testing.T) {
 	expectedType := "*[]apiclient.User"
 	filter := SearchFilterType(map[string][]string{"f_firstname": {"john"}, "f_lastname": {"doe"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no filter", nil, expectedType, false, ""},
-		{"filter", &filter, expectedType, false, ""},
+		{
+			id:           "no filter",
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter",
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

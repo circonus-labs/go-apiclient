@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -50,7 +50,7 @@ func testProvisionBrokerServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -65,7 +65,7 @@ func testProvisionBrokerServer() *httptest.Server {
 			switch r.Method {
 			case "POST":
 				defer r.Body.Close()
-				_, err := ioutil.ReadAll(r.Body)
+				_, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -118,16 +118,30 @@ func TestFetchProvisionBroker(t *testing.T) {
 	apih, server := provisionBrokerTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid provision broker CID (none)"},
-		{"short cid", "abc-1234", "*apiclient.ProvisionBroker", false, ""},
-		{"long cid", "/provision_broker/abc-1234", "*apiclient.ProvisionBroker", false, ""},
+		{
+			id:          "empty cid",
+			shouldFail:  true,
+			expectedErr: "invalid provision broker CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "abc-1234",
+			expectedType: "*apiclient.ProvisionBroker",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/provision_broker/abc-1234",
+			expectedType: "*apiclient.ProvisionBroker",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -155,18 +169,39 @@ func TestUpdateProvisionBroker(t *testing.T) {
 	apih, server := provisionBrokerTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
+		cfg          *ProvisionBroker
 		id           string
 		cid          string
-		cfg          *ProvisionBroker
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (cid)", "", nil, "", true, "invalid provision broker CID (none)"},
-		{"invalid (cfg)", "abc", nil, "", true, "invalid provision broker config (nil)"},
-		{"invalid (cid)", "/invalid", &ProvisionBroker{}, "", true, "invalid provision broker CID (/invalid)"},
-		{"valid", "/provision_broker/abc-1234", &testProvisionBroker, "*apiclient.ProvisionBroker", false, ""},
+		{
+			id:          "invalid (cid)",
+			shouldFail:  true,
+			expectedErr: "invalid provision broker CID (none)",
+		},
+		{
+			id:          "invalid (cfg)",
+			cid:         "abc",
+			shouldFail:  true,
+			expectedErr: "invalid provision broker config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cid:         "/invalid",
+			cfg:         &ProvisionBroker{},
+			shouldFail:  true,
+			expectedErr: "invalid provision broker CID (/invalid)",
+		},
+		{
+			id:           "valid",
+			cid:          "/provision_broker/abc-1234",
+			cfg:          &testProvisionBroker,
+			expectedType: "*apiclient.ProvisionBroker",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -194,15 +229,24 @@ func TestCreateProvisionBroker(t *testing.T) {
 	apih, server := provisionBrokerTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *ProvisionBroker
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid provision broker config (nil)"},
-		{"valid", &testProvisionBroker, "*apiclient.ProvisionBroker", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid provision broker config (nil)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testProvisionBroker,
+			expectedType: "*apiclient.ProvisionBroker",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -43,7 +43,7 @@ func testAnnotationServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -88,7 +88,7 @@ func testAnnotationServer() *httptest.Server {
 				}
 			case "POST":
 				defer r.Body.Close()
-				_, err := ioutil.ReadAll(r.Body)
+				_, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -141,16 +141,32 @@ func TestFetchAnnotation(t *testing.T) {
 	apih, server := annotationTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid annotation CID (none)"},
-		{"short cid", "1234", "*apiclient.Annotation", false, ""},
-		{"long cid", "/annotation/1234", "*apiclient.Annotation", false, ""},
+		{
+			id:           "empty cid",
+			cid:          "",
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid annotation CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "1234",
+			expectedType: "*apiclient.Annotation",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/annotation/1234",
+			expectedType: "*apiclient.Annotation",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -192,15 +208,29 @@ func TestUpdateAnnotation(t *testing.T) {
 	apih, server := annotationTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *Annotation
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid annotation config (nil)"},
-		{"invalid (cid)", &Annotation{CID: "/invalid"}, true, "invalid annotation CID (/invalid)"},
-		{"valid", &testAnnotation, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid annotation config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &Annotation{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid annotation CID (/invalid)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testAnnotation,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -226,15 +256,26 @@ func TestCreateAnnotation(t *testing.T) {
 	apih, server := annotationTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *Annotation
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid annotation config (nil)"},
-		{"valid", &testAnnotation, "*apiclient.Annotation", false, ""},
+		{
+			id:           "invalid (nil)",
+			cfg:          nil,
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid annotation config (nil)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testAnnotation,
+			expectedType: "*apiclient.Annotation",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -262,14 +303,23 @@ func TestDeleteAnnotation(t *testing.T) {
 	apih, server := annotationTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *Annotation
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid annotation config (nil)"},
-		{"valid", &testAnnotation, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid annotation config (nil)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testAnnotation,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -297,15 +347,28 @@ func TestDeleteAnnotationByCID(t *testing.T) {
 	apih, server := annotationTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id          string
 		cid         string
-		shouldFail  bool
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"empty cid", "", true, "invalid annotation CID (none)"},
-		{"short cid", "1234", false, ""},
-		{"long cid", "/annotation/1234", false, ""},
+		{
+			id:          "empty cid",
+			cid:         "",
+			shouldFail:  true,
+			expectedErr: "invalid annotation CID (none)",
+		},
+		{
+			id:         "short cid",
+			cid:        "1234",
+			shouldFail: false,
+		},
+		{
+			id:         "long cid",
+			cid:        "/annotation/1234",
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -337,18 +400,42 @@ func TestSearchAnnotations(t *testing.T) {
 	search := SearchQueryType(`(category="updates")`)
 	filter := SearchFilterType(map[string][]string{"f__created_gt": {"1483639916"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			search:       nil,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "search no filter",
+			search:       &search,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter no search",
+			search:       nil,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

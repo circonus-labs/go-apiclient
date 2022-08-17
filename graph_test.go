@@ -7,9 +7,10 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -79,7 +80,7 @@ func testGraphServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -124,7 +125,7 @@ func testGraphServer() *httptest.Server {
 				}
 			case "POST":
 				defer r.Body.Close()
-				_, err := ioutil.ReadAll(r.Body)
+				_, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -177,16 +178,32 @@ func TestFetchGraph(t *testing.T) {
 	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid graph CID (none)"},
-		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Graph", false, ""},
-		{"long cid", "/graph/01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Graph", false, ""},
+		{
+			id:           "empty cid",
+			cid:          "",
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid graph CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "01234567-89ab-cdef-0123-456789abcdef",
+			expectedType: "*apiclient.Graph",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/graph/01234567-89ab-cdef-0123-456789abcdef",
+			expectedType: "*apiclient.Graph",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -228,15 +245,29 @@ func TestUpdateGraph(t *testing.T) {
 	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *Graph
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid graph config (nil)"},
-		{"invalid (cid)", &Graph{CID: "/invalid"}, true, "invalid graph CID (/invalid)"},
-		{"valid", &testGraph, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid graph config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &Graph{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid graph CID (/invalid)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testGraph,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -262,15 +293,26 @@ func TestCreateGraph(t *testing.T) {
 	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *Graph
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid graph config (nil)"},
-		{"valid", &testGraph, "*apiclient.Graph", false, ""},
+		{
+			id:           "invalid (nil)",
+			cfg:          nil,
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid graph config (nil)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testGraph,
+			expectedType: "*apiclient.Graph",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -298,14 +340,23 @@ func TestDeleteGraph(t *testing.T) {
 	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *Graph
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid graph config (nil)"},
-		{"valid", &testGraph, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid graph config (nil)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testGraph,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -333,15 +384,28 @@ func TestDeleteGraphByCID(t *testing.T) {
 	apih, server := graphTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id          string
 		cid         string
-		shouldFail  bool
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"empty cid", "", true, "invalid graph CID (none)"},
-		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", false, ""},
-		{"long cid", "/graph/01234567-89ab-cdef-0123-456789abcdef", false, ""},
+		{
+			id:          "empty cid",
+			cid:         "",
+			shouldFail:  true,
+			expectedErr: "invalid graph CID (none)",
+		},
+		{
+			id:         "short cid",
+			cid:        "01234567-89ab-cdef-0123-456789abcdef",
+			shouldFail: false,
+		},
+		{
+			id:         "long cid",
+			cid:        "/graph/01234567-89ab-cdef-0123-456789abcdef",
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -373,18 +437,42 @@ func TestSearchGraphs(t *testing.T) {
 	search := SearchQueryType("CPU Utilization")
 	filter := SearchFilterType(map[string][]string{"f__tags_has": {"os:rhel7"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			search:       nil,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "search no filter",
+			search:       &search,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter no search",
+			search:       nil,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -411,7 +499,7 @@ func TestSearchGraphs(t *testing.T) {
 func TestGraphOverlaySet(t *testing.T) {
 	t.Log("testing graph overlay set struct")
 
-	testJSON, err := ioutil.ReadFile("testdata/graph_overlayset.json")
+	testJSON, err := os.ReadFile("testdata/graph_overlayset.json")
 	if err != nil {
 		t.Fatal(err)
 	}

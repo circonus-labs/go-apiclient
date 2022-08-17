@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -53,7 +53,7 @@ func testWorksheetServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -98,7 +98,7 @@ func testWorksheetServer() *httptest.Server {
 				}
 			case "POST":
 				defer r.Body.Close()
-				_, err := ioutil.ReadAll(r.Body)
+				_, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -151,16 +151,30 @@ func TestFetchWorksheet(t *testing.T) {
 	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid worksheet CID (none)"},
-		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Worksheet", false, ""},
-		{"long cid", "/worksheet/01234567-89ab-cdef-0123-456789abcdef", "*apiclient.Worksheet", false, ""},
+		{
+			id:          "empty cid",
+			shouldFail:  true,
+			expectedErr: "invalid worksheet CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "01234567-89ab-cdef-0123-456789abcdef",
+			expectedType: "*apiclient.Worksheet",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/worksheet/01234567-89ab-cdef-0123-456789abcdef",
+			expectedType: "*apiclient.Worksheet",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -203,16 +217,30 @@ func TestUpdateWorksheet(t *testing.T) {
 	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *Worksheet
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid worksheet config (nil)"},
-		{"invalid (cid)", &Worksheet{CID: "/invalid"}, "", true, "invalid worksheet CID (/invalid)"},
-		{"valid", &testWorksheet, "*apiclient.Worksheet", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid worksheet config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &Worksheet{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid worksheet CID (/invalid)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testWorksheet,
+			expectedType: "*apiclient.Worksheet",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -240,15 +268,24 @@ func TestCreateWorksheet(t *testing.T) {
 	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *Worksheet
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid worksheet config (nil)"},
-		{"valid", &testWorksheet, "*apiclient.Worksheet", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid worksheet config (nil)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testWorksheet,
+			expectedType: "*apiclient.Worksheet",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -276,14 +313,22 @@ func TestDeleteWorksheet(t *testing.T) {
 	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *Worksheet
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid worksheet config (nil)"},
-		{"valid", &testWorksheet, false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid worksheet config (nil)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testWorksheet,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -311,15 +356,27 @@ func TestDeleteWorksheetByCID(t *testing.T) {
 	apih, server := worksheetTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id          string
 		cid         string
-		shouldFail  bool
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"empty cid", "", true, "invalid worksheet CID (none)"},
-		{"short cid", "01234567-89ab-cdef-0123-456789abcdef", false, ""},
-		{"long cid", "/worksheet/01234567-89ab-cdef-0123-456789abcdef", false, ""},
+		{
+			id:          "empty cid",
+			shouldFail:  true,
+			expectedErr: "invalid worksheet CID (none)",
+		},
+		{
+			id:         "short cid",
+			cid:        "01234567-89ab-cdef-0123-456789abcdef",
+			shouldFail: false,
+		},
+		{
+			id:         "long cid",
+			cid:        "/worksheet/01234567-89ab-cdef-0123-456789abcdef",
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -351,18 +408,38 @@ func TestSearchWorksheets(t *testing.T) {
 	search := SearchQueryType("web servers")
 	filter := SearchFilterType(map[string][]string{"f_favorite": {"true"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "search no filter",
+			search:       &search,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter no search",
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

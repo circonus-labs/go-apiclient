@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -459,7 +459,7 @@ func testDashboardServer() *httptest.Server {
 				fmt.Fprintln(w, jsondash)
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -504,7 +504,7 @@ func testDashboardServer() *httptest.Server {
 				}
 			case "POST":
 				defer r.Body.Close()
-				_, err := ioutil.ReadAll(r.Body)
+				_, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -557,16 +557,32 @@ func TestFetchDashboard(t *testing.T) {
 	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", true, "invalid dashboard CID (none)"},
-		{"short cid", "1234", "*apiclient.Dashboard", false, ""},
-		{"long cid", "/dashboard/1234", "*apiclient.Dashboard", false, ""},
+		{
+			id:           "empty cid",
+			cid:          "",
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid dashboard CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "1234",
+			expectedType: "*apiclient.Dashboard",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/dashboard/1234",
+			expectedType: "*apiclient.Dashboard",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -614,15 +630,29 @@ func TestUpdateDashboard(t *testing.T) {
 	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *Dashboard
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid dashboard config (nil)"},
-		{"invalid (cid)", &Dashboard{CID: "/invalid"}, true, "invalid dashboard CID (/invalid)"},
-		{"valid", &testDashboard, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid dashboard config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &Dashboard{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid dashboard CID (/invalid)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testDashboard,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -648,15 +678,26 @@ func TestCreateDashboard(t *testing.T) {
 	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *Dashboard
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid dashboard config (nil)"},
-		{"valid", &testDashboard, "*apiclient.Dashboard", false, ""},
+		{
+			id:           "invalid (nil)",
+			cfg:          nil,
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid dashboard config (nil)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testDashboard,
+			expectedType: "*apiclient.Dashboard",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -684,14 +725,23 @@ func TestDeleteDashboard(t *testing.T) {
 	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *Dashboard
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid dashboard config (nil)"},
-		{"valid", &testDashboard, false, ""},
+		{
+			id:          "invalid (nil)",
+			cfg:         nil,
+			shouldFail:  true,
+			expectedErr: "invalid dashboard config (nil)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testDashboard,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -719,15 +769,28 @@ func TestDeleteDashboardByCID(t *testing.T) {
 	apih, server := dashboardTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id          string
 		cid         string
-		shouldFail  bool
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"empty cid", "", true, "invalid dashboard CID (none)"},
-		{"short cid", "1234", false, ""},
-		{"long cid", "/dashboard/1234", false, ""},
+		{
+			id:          "empty cid",
+			cid:         "",
+			shouldFail:  true,
+			expectedErr: "invalid dashboard CID (none)",
+		},
+		{
+			id:         "short cid",
+			cid:        "1234",
+			shouldFail: false,
+		},
+		{
+			id:         "long cid",
+			cid:        "/dashboard/1234",
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -759,18 +822,42 @@ func TestSearchDashboards(t *testing.T) {
 	search := SearchQueryType("my dashboard")
 	filter := SearchFilterType(map[string][]string{"f__created_gt": {"1483639916"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			search:       nil,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "search no filter",
+			search:       &search,
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter no search",
+			search:       nil,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

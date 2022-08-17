@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -77,7 +77,7 @@ func testAccountServer() *httptest.Server {
 				fmt.Fprintln(w, string(ret))
 			case "PUT":
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -148,16 +148,32 @@ func TestFetchAccount(t *testing.T) {
 	apih, server := accountTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	expectedType := "*apiclient.Account"
+	tests := []struct {
 		id           string
 		cid          string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"valid (default,empty)", "", "*apiclient.Account", false, ""},
-		{"valid (short cid)", "1234", "*apiclient.Account", false, ""},
-		{"valid (long cid)", "/account/1234", "*apiclient.Account", false, ""},
+		{
+			id:           "valid (default,empty)",
+			cid:          "",
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "valid (short cid)",
+			cid:          "1234",
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "valid (long cid)",
+			cid:          "/account/1234",
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -201,16 +217,33 @@ func TestUpdateAccount(t *testing.T) {
 	apih, server := accountTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *Account
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid account config (nil)"},
-		{"invalid (cid)", &Account{CID: "/invalid"}, "", true, "invalid account CID (/invalid)"},
-		{"valid", &testAccount, "*apiclient.Account", false, ""},
+		{
+			id:           "invalid (nil)",
+			cfg:          nil,
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid account config (nil)",
+		},
+		{
+			id:           "invalid (cid)",
+			cfg:          &Account{CID: "/invalid"},
+			expectedType: "",
+			shouldFail:   true,
+			expectedErr:  "invalid account CID (/invalid)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testAccount,
+			expectedType: "*apiclient.Account",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -241,15 +274,25 @@ func TestSearchAccounts(t *testing.T) {
 	expectedType := "*[]apiclient.Account"
 	filter := SearchFilterType(map[string][]string{"f_name_wildcard": {"*ops*"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no filter", nil, expectedType, false, ""},
-		{"filter", &filter, expectedType, false, ""},
+		{
+			id:           "no filter",
+			filter:       nil,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter",
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {

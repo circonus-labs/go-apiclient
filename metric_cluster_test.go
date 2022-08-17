@@ -7,7 +7,7 @@ package apiclient
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -36,7 +36,7 @@ func testMetricClusterServer() *httptest.Server {
 			switch r.Method {
 			case "PUT": // update
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -93,7 +93,7 @@ func testMetricClusterServer() *httptest.Server {
 				}
 			case "POST": // create
 				defer r.Body.Close()
-				b, err := ioutil.ReadAll(r.Body)
+				b, err := io.ReadAll(r.Body)
 				if err != nil {
 					panic(err)
 				}
@@ -142,19 +142,45 @@ func TestFetchMetricCluster(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		cid          string
 		extras       string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"empty cid", "", "", "", true, "invalid metric cluster CID (none)"},
-		{"short cid", "1234", "", "*apiclient.MetricCluster", false, ""},
-		{"long cid", "/metric_cluster/1234", "", "*apiclient.MetricCluster", false, ""},
-		{"cid xtra/metrics", "/metric_cluster/1234", "metrics", "*apiclient.MetricCluster", false, ""},
-		{"cid xtra/uuids", "/metric_cluster/1234", "uuids", "*apiclient.MetricCluster", false, ""},
+		{
+			id:          "empty cid",
+			shouldFail:  true,
+			expectedErr: "invalid metric cluster CID (none)",
+		},
+		{
+			id:           "short cid",
+			cid:          "1234",
+			expectedType: "*apiclient.MetricCluster",
+			shouldFail:   false,
+		},
+		{
+			id:           "long cid",
+			cid:          "/metric_cluster/1234",
+			expectedType: "*apiclient.MetricCluster",
+			shouldFail:   false,
+		},
+		{
+			id:           "cid xtra/metrics",
+			cid:          "/metric_cluster/1234",
+			extras:       "metrics",
+			expectedType: "*apiclient.MetricCluster",
+			shouldFail:   false,
+		},
+		{
+			id:           "cid xtra/uuids",
+			cid:          "/metric_cluster/1234",
+			extras:       "uuids",
+			expectedType: "*apiclient.MetricCluster",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -182,16 +208,30 @@ func TestFetchMetricClusters(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id           string
 		extras       string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no extras", "", "*[]apiclient.MetricCluster", false, ""},
-		{"xtra/metrics", "metrics", "*[]apiclient.MetricCluster", false, ""},
-		{"xtra/uuids", "uuids", "*[]apiclient.MetricCluster", false, ""},
+		{
+			id:           "no extras",
+			expectedType: "*[]apiclient.MetricCluster",
+			shouldFail:   false,
+		},
+		{
+			id:           "xtra/metrics",
+			extras:       "metrics",
+			expectedType: "*[]apiclient.MetricCluster",
+			shouldFail:   false,
+		},
+		{
+			id:           "xtra/uuids",
+			extras:       "uuids",
+			expectedType: "*[]apiclient.MetricCluster",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -219,16 +259,30 @@ func TestUpdateMetricCluster(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *MetricCluster
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid metric cluster config (nil)"},
-		{"invalid (cid)", &MetricCluster{CID: "/invalid"}, "", true, "invalid metric cluster CID (/invalid)"},
-		{"valid", &testMetricCluster, "*apiclient.MetricCluster", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid metric cluster config (nil)",
+		},
+		{
+			id:          "invalid (cid)",
+			cfg:         &MetricCluster{CID: "/invalid"},
+			shouldFail:  true,
+			expectedErr: "invalid metric cluster CID (/invalid)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testMetricCluster,
+			expectedType: "*apiclient.MetricCluster",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -256,15 +310,24 @@ func TestCreateMetricCluster(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		cfg          *MetricCluster
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"invalid (nil)", nil, "", true, "invalid metric cluster config (nil)"},
-		{"valid", &testMetricCluster, "*apiclient.MetricCluster", false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid metric cluster config (nil)",
+		},
+		{
+			id:           "valid",
+			cfg:          &testMetricCluster,
+			expectedType: "*apiclient.MetricCluster",
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
@@ -292,14 +355,22 @@ func TestDeleteMetricCluster(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
-		id          string
+	tests := []struct {
 		cfg         *MetricCluster
-		shouldFail  bool
+		id          string
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"invalid (nil)", nil, true, "invalid metric cluster config (nil)"},
-		{"valid", &testMetricCluster, false, ""},
+		{
+			id:          "invalid (nil)",
+			shouldFail:  true,
+			expectedErr: "invalid metric cluster config (nil)",
+		},
+		{
+			id:         "valid",
+			cfg:        &testMetricCluster,
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -327,15 +398,27 @@ func TestDeleteMetricClusterByCID(t *testing.T) {
 	apih, server := metricClusterTestBootstrap(t)
 	defer server.Close()
 
-	tests := []struct { //nolint:govet
+	tests := []struct {
 		id          string
 		cid         string
-		shouldFail  bool
 		expectedErr string
+		shouldFail  bool
 	}{
-		{"empty cid", "", true, "invalid metric cluster CID (none)"},
-		{"short cid", "1234", false, ""},
-		{"long cid", "/metric_cluster/1234", false, ""},
+		{
+			id:          "empty cid",
+			shouldFail:  true,
+			expectedErr: "invalid metric cluster CID (none)",
+		},
+		{
+			id:         "short cid",
+			cid:        "1234",
+			shouldFail: false,
+		},
+		{
+			id:         "long cid",
+			cid:        "/metric_cluster/1234",
+			shouldFail: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -367,18 +450,38 @@ func TestSearchMetricClusters(t *testing.T) {
 	search := SearchQueryType("web servers")
 	filter := SearchFilterType(map[string][]string{"f_tags_has": {"dc:sfo1"}})
 
-	tests := []struct { //nolint:govet
-		id           string
+	tests := []struct {
 		search       *SearchQueryType
 		filter       *SearchFilterType
+		id           string
 		expectedType string
-		shouldFail   bool
 		expectedErr  string
+		shouldFail   bool
 	}{
-		{"no search, no filter", nil, nil, expectedType, false, ""},
-		{"search no filter", &search, nil, expectedType, false, ""},
-		{"filter no search", nil, &filter, expectedType, false, ""},
-		{"both filter and search", &search, &filter, expectedType, false, ""},
+		{
+			id:           "no search, no filter",
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "search no filter",
+			search:       &search,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "filter no search",
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
+		{
+			id:           "both filter and search",
+			search:       &search,
+			filter:       &filter,
+			expectedType: expectedType,
+			shouldFail:   false,
+		},
 	}
 
 	for _, test := range tests {
