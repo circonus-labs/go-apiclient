@@ -16,7 +16,8 @@ import (
 
 var (
 	testAccount = Account{
-		CID: "/account/1234",
+		CID:         "/account/1234",
+		AccountUUID: "7940A8D1-6209-48BB-8A97-0CDA1145BD40",
 		ContactGroups: []string{
 			"/contact_group/1701",
 			"/contact_group/3141",
