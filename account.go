@@ -48,7 +48,7 @@ type Account struct {
 	Timezone             string          `json:"timezone,omitempty"`               // string
 	UIBaseURL            string          `json:"_ui_base_url,omitempty"`           // string
 	PrivateC3DataURL     string          `json:"_c3_data_url,omitempty"`           // string
-	PublicC3DataURL      string          `json:"c3_data_url,omitempty"`            // string
+	C3DataURL            string          `json:"c3_data_url,omitempty"`            // string
 	Address1             *string         `json:"address1,omitempty"`               // string or null
 	Address2             *string         `json:"address2,omitempty"`               // string or null
 	CCEmail              *string         `json:"cc_email,omitempty"`               // string or null
