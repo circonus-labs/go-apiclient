@@ -1,10 +1,14 @@
 # unreleased
 
-## v0.7.23
+## v0.7.24
 
 * build: add goreleaser config (with sbom generation)
 * chore: use latest lint in workflow
 * chore: update .gitignore
+
+## v0.7.23
+
+* feat: prepare to switch C3DataURL to be writeable
 
 ## v0.7.22
 
